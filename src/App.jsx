@@ -92,13 +92,32 @@ const BADGES = [
 const INITIAL_DOC = {
   tasks: TASKS_INIT, rewards: REWARDS_INIT,
   done: [], xp: 0, streak: 0, shields: 0,
-  history: [], profileIcon: '😊', parentIcon: '👩', comboBonusToday: false,
+  history: [], profileIcon: '😊', profilePhoto: null, parentIcon: '👩', comboBonusToday: false,
   lastResetDiaria: getToday(), lastResetSemanal: getMonday(), lastResetMensal: getMonth(),
 }
 
 // ─── utils ───────────────────────────────────────────────────────────
 const getLvl    = xp => LEVELS.find(l => xp>=l.min && (l.max===Infinity||xp<=l.max)) || LEVELS[0]
 const getLvlPct = xp => { const l=getLvl(xp); if(l.n===5) return 100; return Math.min(100,Math.round(((xp-l.min)/(l.max-l.min+1))*100)) }
+
+const compressImage = file => new Promise(resolve => {
+  const reader = new FileReader()
+  reader.onload = e => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 128; canvas.height = 128
+      const ctx = canvas.getContext('2d')
+      const min = Math.min(img.width, img.height)
+      const sx  = (img.width  - min) / 2
+      const sy  = (img.height - min) / 2
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, 128, 128)
+      resolve(canvas.toDataURL('image/jpeg', 0.75))
+    }
+    img.src = e.target.result
+  }
+  reader.readAsDataURL(file)
+})
 
 // ─── paletas ─────────────────────────────────────────────────────────
 const T = { bg:'#0C0B16', surface:'#1C1A2E', surface2:'#252340', border:'#2E2C48', pri:'#7C5CFC', priL:'#A688FF', acc:'#FF6F3C', ok:'#00D68F', err:'#FF4D6D', txt:'#F2F0FF', muted:'#9896B4' }
@@ -211,15 +230,33 @@ function XpBar({ xp, C }) {
 // ════════════════════════════════════════════════════════════════════
 // TELAS DA FILHA
 // ════════════════════════════════════════════════════════════════════
-function AvatarPicker({ current, onSelect, onClose, avatarList = AVATARS, title = 'Escolha seu avatar' }) {
+function AvatarPicker({ current, onSelect, onClose, onPhoto, avatarList = AVATARS, title = 'Escolha seu avatar' }) {
+  const fileRef = useState(null)[0]
+  const inputRef = { current: null }
+
+  const handleFile = async e => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const b64 = await compressImage(file)
+    onPhoto && onPhoto(b64)
+    onClose()
+  }
+
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',zIndex:99,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
       <div style={{background:'#1C1A2E',borderRadius:'24px 24px 0 0',padding:'24px 20px 40px',width:'100%',maxWidth:440}}>
-        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:17,marginBottom:20,textAlign:'center'}}>{title}</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:20}}>
+        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:17,marginBottom:16,textAlign:'center'}}>{title}</div>
+        {onPhoto && (
+          <label style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,background:'rgba(124,92,252,.15)',border:'1px dashed rgba(124,92,252,.5)',borderRadius:14,padding:'14px',marginBottom:16,cursor:'pointer'}}>
+            <span style={{fontSize:22}}>📷</span>
+            <span style={{color:'#A688FF',fontWeight:600,fontSize:14}}>Carregar foto da galeria</span>
+            <input type="file" accept="image/*" style={{display:'none'}} onChange={handleFile} />
+          </label>
+        )}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:16}}>
           {avatarList.map(a=>(
-            <button key={a} className="btn" onClick={()=>onSelect(a)}
-              style={{fontSize:36,background:a===current?'rgba(124,92,252,.3)':'rgba(255,255,255,.05)',border:`2px solid ${a===current?'#7C5CFC':'transparent'}`,borderRadius:16,padding:'10px',lineHeight:1}}>
+            <button key={a} className="btn" onClick={()=>{ onSelect(a); onClose() }}
+              style={{fontSize:34,background:a===current?'rgba(124,92,252,.3)':'rgba(255,255,255,.05)',border:`2px solid ${a===current?'#7C5CFC':'transparent'}`,borderRadius:14,padding:'8px',lineHeight:1}}>
               {a}
             </button>
           ))}
@@ -242,12 +279,14 @@ function ComboOverlay() {
   )
 }
 
-function MotivationToast({ msg }) {
+function MotivationToast({ msg, onClose }) {
   return (
-    <div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:60,pointerEvents:'none',width:'90%',maxWidth:340}}>
-      <div className="fade-up" style={{background:'linear-gradient(135deg,#1C1A2E,#252340)',border:'1px solid rgba(124,92,252,.4)',borderRadius:16,padding:'14px 20px',display:'flex',alignItems:'center',gap:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}>
-        <span style={{fontSize:28}}>💬</span>
-        <span style={{color:'#F2F0FF',fontWeight:600,fontSize:14,lineHeight:1.4}}>{msg}</span>
+    <div style={{position:'fixed',top:74,left:'50%',transform:'translateX(-50%)',zIndex:60,width:'92%',maxWidth:360}}>
+      <div className="fade-up" style={{background:'linear-gradient(135deg,#1C1A2E,#2A2050)',border:'1px solid rgba(124,92,252,.5)',borderRadius:18,padding:'16px 20px',display:'flex',alignItems:'flex-start',gap:12,boxShadow:'0 12px 40px rgba(0,0,0,.6)'}}>
+        <span style={{fontSize:30,lineHeight:1,flexShrink:0}}>💬</span>
+        <span style={{flex:1,color:'#F2F0FF',fontWeight:600,fontSize:15,lineHeight:1.5}}>{msg}</span>
+        <button className="btn" onClick={onClose}
+          style={{background:'rgba(255,255,255,.1)',border:'none',borderRadius:'50%',width:30,height:30,color:'#9896B4',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:-2}}>×</button>
       </div>
     </div>
   )
@@ -307,7 +346,7 @@ function TaskGroup({ tipo, tasks, done, onToggle }) {
   )
 }
 
-function TeenMissoes({ tasks, done, onToggle, showCombo, motivationMsg }) {
+function TeenMissoes({ tasks, done, onToggle, showCombo, motivationMsg, onCloseMotivation }) {
   const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
   const todayXp    = dailyTasks.filter(t=>done.includes(t.id)).reduce((s,t)=>s+t.xp,0)
   const totalDayXp = dailyTasks.reduce((s,t)=>s+t.xp,0)
@@ -316,7 +355,7 @@ function TeenMissoes({ tasks, done, onToggle, showCombo, motivationMsg }) {
   return (
     <div style={{padding:'16px 16px 100px',position:'relative'}}>
       {showCombo && <ComboOverlay />}
-      {motivationMsg && <MotivationToast msg={motivationMsg} />}
+      {motivationMsg && <MotivationToast msg={motivationMsg} onClose={onCloseMotivation} />}
 
       {/* progresso das diárias */}
       <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:16,padding:16,marginBottom:20}}>
@@ -440,20 +479,25 @@ function TeenTrofeus({ xp, streak, shields }) {
   )
 }
 
-function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, motivationMsg, profileIcon, onProfileIcon, onBuyShield, onLogout }) {
+function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, motivationMsg, onCloseMotivation, profileIcon, profilePhoto, onProfileIcon, onProfilePhoto, onBuyShield, onLogout }) {
   const [tab, setTab]       = useState('missoes')
   const [showAv, setShowAv] = useState(false)
 
   return (
     <div style={{background:T.bg,minHeight:'100vh',maxWidth:440,margin:'0 auto',position:'relative'}}>
-      {showAv && <AvatarPicker current={profileIcon} onSelect={v=>{onProfileIcon(v);setShowAv(false)}} onClose={()=>setShowAv(false)} />}
+      {showAv && <AvatarPicker current={profileIcon} avatarList={AVATARS} title="Seu avatar"
+        onSelect={v=>{onProfileIcon(v);onProfilePhoto(null)}}
+        onPhoto={onProfilePhoto}
+        onClose={()=>setShowAv(false)} />}
 
       <div style={{background:`linear-gradient(180deg,#1A1535 0%,${T.bg} 100%)`,padding:'20px 20px 16px',borderBottom:`1px solid ${T.border}`}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <button className="btn" onClick={()=>setShowAv(true)}
-              style={{width:50,height:50,borderRadius:'50%',background:`linear-gradient(135deg,${T.pri},${T.acc})`,border:'none',fontSize:26,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              {profileIcon}
+              style={{width:50,height:50,borderRadius:'50%',background:`linear-gradient(135deg,${T.pri},${T.acc})`,border:'none',fontSize:26,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',padding:0}}>
+              {profilePhoto
+                ? <img src={profilePhoto} style={{width:50,height:50,objectFit:'cover'}} />
+                : profileIcon}
             </button>
             <div>
               <div style={{color:T.muted,fontSize:12}}>Bem-vinda,</div>
@@ -472,7 +516,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
         <XpBar xp={xp} C={T} />
       </div>
 
-      {tab==='missoes' && <TeenMissoes tasks={tasks} done={done} onToggle={onToggle} showCombo={showCombo} motivationMsg={motivationMsg} />}
+      {tab==='missoes' && <TeenMissoes tasks={tasks} done={done} onToggle={onToggle} showCombo={showCombo} motivationMsg={motivationMsg} onCloseMotivation={onCloseMotivation} />}
       {tab==='loja'    && <TeenLoja rewards={rewards} xp={xp} shields={shields} onBuyShield={onBuyShield} />}
       {tab==='trofeus' && <TeenTrofeus xp={xp} streak={streak} shields={shields} />}
 
@@ -493,7 +537,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
 // ════════════════════════════════════════════════════════════════════
 // TELAS DOS PAIS
 // ════════════════════════════════════════════════════════════════════
-function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profileIcon, onUndoTask }) {
+function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profileIcon, profilePhoto, onUndoTask }) {
   const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
   const todayXp    = tasks.filter(t=>done.includes(t.id)).reduce((s,t)=>s+t.xp,0)
   const pct        = tasks.length ? Math.round((done.length/tasks.length)*100) : 0
@@ -517,7 +561,11 @@ function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profil
       {/* card Kauanny */}
       <div style={{background:`linear-gradient(135deg,${P.pri}1A,${P.acc}0D)`,border:`1px solid ${P.pri}40`,borderRadius:18,padding:20}}>
         <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
-          <div style={{width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${P.pri},#6366F1)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>{profileIcon||'😊'}</div>
+          <div style={{width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${P.pri},#6366F1)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,overflow:'hidden'}}>
+            {profilePhoto
+              ? <img src={profilePhoto} style={{width:52,height:52,objectFit:'cover'}} />
+              : (profileIcon||'😊')}
+          </div>
           <div style={{flex:1}}>
             <div style={{color:P.txt,fontWeight:700,fontSize:18}}>Kauanny</div>
             <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
@@ -621,21 +669,43 @@ function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profil
   )
 }
 
-const TASK_ICONS = ['🛏️','🧹','🍽️','🏠','⏰','📚','💪','📖','🌱','🎯','🧺','🐕','🚿','🌿','🍳']
-const RWD_ICONS  = ['🎬','🍕','🎭','💰','🎁','⭐','🏖️','👗','🎮','🎵','🎂','🛍️']
+const TASK_ICONS = ['🛏️','🧹','🍽️','🏠','⏰','📚','💪','📖','🌱','🎯','🧺','🚿','🌿','🍳','✏️','🎒','🏃','🐕','💊','🪥','🛒','🌸','💡','🎨','🏋️','🧘','🚴','🎹','🎸','🌙','⭐','❤️','🎓','🔑','🏆']
+const RWD_ICONS  = ['🎬','🍕','🎭','💰','🎁','⭐','🏖️','👗','🎮','🎵','🎂','🛍️','🍦','🎪','🎡','🏄','🎠','🧁','🍔','🌮','🎀','💄','👟','🎟️','🎯','🎲','🚗','✈️','🏩','🌺']
+
+function IconPickerInline({ icons, selected, onSelect, C }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{position:'relative'}}>
+      <button className="btn" onClick={()=>setOpen(o=>!o)}
+        style={{background:C.surface2,border:`1px solid ${open?C.pri:C.border}`,borderRadius:10,padding:'9px 12px',fontSize:24,display:'flex',alignItems:'center',gap:6,cursor:'pointer'}}>
+        <span>{selected}</span>
+        <span style={{color:C.muted,fontSize:11}}>{open?'▲':'▼'}</span>
+      </button>
+      {open && (
+        <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,zIndex:30,background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:10,display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,boxShadow:'0 12px 40px rgba(0,0,0,.6)',minWidth:260}}>
+          {icons.map(ic=>(
+            <button key={ic} className="btn" onClick={()=>{onSelect(ic);setOpen(false)}}
+              style={{fontSize:22,background:ic===selected?C.pri+'33':'transparent',border:`1px solid ${ic===selected?C.pri:'transparent'}`,borderRadius:8,padding:'5px',lineHeight:1}}>
+              {ic}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function EditRow({ item, icons, isXp, onSave, onCancel, C }) {
   const [title,   setTitle]   = useState(item.title)
   const [val,     setVal]     = useState(isXp?item.xp:item.cost)
   const [tipo,    setTipo]    = useState(item.tipo||'diaria')
-  const [iconIdx, setIconIdx] = useState(Math.max(0,icons.indexOf(item.icon)))
+  const [selIcon, setSelIcon] = useState(item.icon||icons[0])
   const vals = isXp ? [5,10,15,20,30] : [50,80,100,150,200,300,500]
 
   return (
     <div style={{background:C.surface2,border:`1px solid ${C.pri}44`,borderRadius:14,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
       <div style={{display:'flex',gap:8}}>
-        <button className="btn" onClick={()=>setIconIdx(i=>(i+1)%icons.length)}
-          style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:'8px 10px',fontSize:20}}>{icons[iconIdx]}</button>
+        <IconPickerInline icons={icons} selected={selIcon} onSelect={setSelIcon} C={C} />
         <input value={title} onChange={e=>setTitle(e.target.value)}
           style={{flex:1,background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:'8px 12px',color:C.txt,fontSize:14}} />
       </div>
@@ -655,7 +725,7 @@ function EditRow({ item, icons, isXp, onSave, onCancel, C }) {
         ))}
         <div style={{marginLeft:'auto',display:'flex',gap:8}}>
           <button className="btn" onClick={onCancel} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:'6px 12px',color:C.muted,fontSize:13}}>Cancelar</button>
-          <button className="btn" onClick={()=>onSave({...item,title:title.trim()||item.title,icon:icons[iconIdx],tipo,...(isXp?{xp:val}:{cost:val})})}
+          <button className="btn" onClick={()=>onSave({...item,title:title.trim()||item.title,icon:selIcon,tipo,...(isXp?{xp:val}:{cost:val})})}
             style={{background:C.pri,border:'none',borderRadius:8,padding:'6px 14px',color:'white',fontWeight:700,fontSize:13}}>Salvar</button>
         </div>
       </div>
@@ -664,16 +734,16 @@ function EditRow({ item, icons, isXp, onSave, onCancel, C }) {
 }
 
 function ParentTarefas({ tasks, setTasks }) {
-  const [title,   setTitle]   = useState('')
-  const [xpVal,   setXpVal]   = useState(10)
-  const [tipo,    setTipo]    = useState('diaria')
-  const [iconIdx, setIconIdx] = useState(0)
-  const [editId,  setEditId]  = useState(null)
+  const [title,    setTitle]   = useState('')
+  const [xpVal,    setXpVal]   = useState(10)
+  const [tipo,     setTipo]    = useState('diaria')
+  const [selIcon,  setSelIcon] = useState(TASK_ICONS[0])
+  const [editId,   setEditId]  = useState(null)
 
   const add = () => {
     if (!title.trim()) return
-    setTasks(p=>[...p,{id:Date.now(),title:title.trim(),xp:xpVal,icon:TASK_ICONS[iconIdx],tipo}])
-    setTitle(''); setIconIdx(i=>(i+1)%TASK_ICONS.length)
+    setTasks(p=>[...p,{id:Date.now(),title:title.trim(),xp:xpVal,icon:selIcon,tipo}])
+    setTitle('')
   }
 
   return (
@@ -681,8 +751,7 @@ function ParentTarefas({ tasks, setTasks }) {
       <div style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:18,padding:16,marginBottom:20}}>
         <div style={{color:P.txt,fontWeight:700,fontSize:15,marginBottom:12}}>➕ Nova tarefa</div>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
-          <button className="btn" onClick={()=>setIconIdx(i=>(i+1)%TASK_ICONS.length)}
-            style={{background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'10px 12px',fontSize:22}}>{TASK_ICONS[iconIdx]}</button>
+          <IconPickerInline icons={TASK_ICONS} selected={selIcon} onSelect={setSelIcon} C={P} />
           <input value={title} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="Nome da tarefa..."
             style={{flex:1,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'10px 14px',color:P.txt,fontSize:14}} />
         </div>
@@ -736,13 +805,13 @@ function ParentTarefas({ tasks, setTasks }) {
 function ParentRecompensas({ rewards, setRewards }) {
   const [title,   setTitle]   = useState('')
   const [cost,    setCost]    = useState(100)
-  const [iconIdx, setIconIdx] = useState(0)
+  const [selIcon, setSelIcon] = useState(RWD_ICONS[0])
   const [editId,  setEditId]  = useState(null)
 
   const add = () => {
     if (!title.trim()) return
-    setRewards(p=>[...p,{id:Date.now(),title:title.trim(),cost,icon:RWD_ICONS[iconIdx],shield:false}])
-    setTitle(''); setIconIdx(i=>(i+1)%RWD_ICONS.length)
+    setRewards(p=>[...p,{id:Date.now(),title:title.trim(),cost,icon:selIcon,shield:false}])
+    setTitle('')
   }
 
   return (
@@ -750,8 +819,7 @@ function ParentRecompensas({ rewards, setRewards }) {
       <div style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:18,padding:16,marginBottom:20}}>
         <div style={{color:P.txt,fontWeight:700,fontSize:15,marginBottom:12}}>🎁 Nova recompensa</div>
         <div style={{display:'flex',gap:8,marginBottom:10}}>
-          <button className="btn" onClick={()=>setIconIdx(i=>(i+1)%RWD_ICONS.length)}
-            style={{background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'10px 12px',fontSize:22}}>{RWD_ICONS[iconIdx]}</button>
+          <IconPickerInline icons={RWD_ICONS} selected={selIcon} onSelect={setSelIcon} C={P} />
           <input value={title} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="Nome da recompensa..."
             style={{flex:1,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'10px 14px',color:P.txt,fontSize:14}} />
         </div>
@@ -816,7 +884,7 @@ function ParentConfig({ onResetDay, onResetAll }) {
   )
 }
 
-function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, profileIcon, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
+function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, profileIcon, profilePhoto, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
   const [tab,    setTab]    = useState('home')
   const [showAv, setShowAv] = useState(false)
   return (
@@ -841,7 +909,7 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shi
         </div>
       </div>
 
-      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} shields={shields} history={history} profileIcon={profileIcon} onUndoTask={onUndoTask} />}
+      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} shields={shields} history={history} profileIcon={profileIcon} profilePhoto={profilePhoto} onUndoTask={onUndoTask} />}
       {tab==='tarefas'     && <ParentTarefas tasks={tasks} setTasks={setTasks} />}
       {tab==='recompensas' && <ParentRecompensas rewards={rewards} setRewards={setRewards} />}
       {tab==='config'      && <ParentConfig onResetDay={onResetDay} onResetAll={onResetAll} />}
@@ -872,8 +940,9 @@ export default function App() {
   const [streak,         setStreak]        = useState(0)
   const [shields,        setShields]       = useState(0)
   const [history,        setHistory]       = useState([])
-  const [profileIcon,    setProfileIconSt] = useState('😊')
-  const [parentIcon,     setParentIconSt]  = useState('👩')
+  const [profileIcon,    setProfileIconSt]  = useState('😊')
+  const [profilePhoto,   setProfilePhotoSt] = useState(null)
+  const [parentIcon,     setParentIconSt]   = useState('👩')
   const [comboBonusToday,setComboBT]       = useState(false)
   const [showCombo,      setShowCombo]     = useState(false)
   const [motivationMsg,  setMotivation]    = useState('')
@@ -945,6 +1014,7 @@ export default function App() {
         setShields(d.shields||0)
         setHistory(d.history||[])
         setProfileIconSt(d.profileIcon||'😊')
+        setProfilePhotoSt(d.profilePhoto||null)
         setParentIconSt(d.parentIcon||'👩')
         setComboBT(d.comboBonusToday||false)
       } else {
@@ -964,11 +1034,8 @@ export default function App() {
     setRwdSt(prev => { const next=typeof updater==='function'?updater(prev):updater; save({rewards:next}); return next })
   }
 
-  const showMotivation = () => {
-    const msg = MOTIVATION_MSGS[Math.floor(Math.random()*MOTIVATION_MSGS.length)]
-    setMotivation(msg)
-    setTimeout(()=>setMotivation(''), 2500)
-  }
+  const showMotivation  = () => setMotivation(MOTIVATION_MSGS[Math.floor(Math.random()*MOTIVATION_MSGS.length)])
+  const closeMotivation = () => setMotivation('')
 
   const handleToggle = task => {
     const isDone   = done.includes(task.id)
@@ -1003,8 +1070,9 @@ export default function App() {
     save({xp:newXp, shields:newShields})
   }
 
-  const handleProfileIcon = icon => { setProfileIconSt(icon); save({profileIcon:icon}) }
-  const handleParentIcon  = icon => { setParentIconSt(icon); save({parentIcon:icon}) }
+  const handleProfileIcon  = icon => { setProfileIconSt(icon); save({profileIcon:icon}) }
+  const handleProfilePhoto = b64  => { setProfilePhotoSt(b64); save({profilePhoto:b64}) }
+  const handleParentIcon   = icon => { setParentIconSt(icon);  save({parentIcon:icon})  }
   const handleLogout      = ()   => signOut(auth)
 
   const handleUndoTask = task => {
@@ -1044,12 +1112,15 @@ export default function App() {
       {isParent
         ? <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards}
             xp={xp} done={done} streak={streak} shields={shields} history={history}
-            profileIcon={profileIcon} parentIcon={parentIcon} onParentIcon={handleParentIcon}
+            profileIcon={profileIcon} profilePhoto={profilePhoto}
+            parentIcon={parentIcon} onParentIcon={handleParentIcon}
             onResetDay={handleResetDay} onResetAll={handleResetAll} onUndoTask={handleUndoTask}
             onLogout={handleLogout} userName={getFirstName(user.email)} />
         : <TeenApp tasks={tasks} rewards={rewards} done={done} onToggle={handleToggle}
-            xp={xp} streak={streak} shields={shields} showCombo={showCombo} motivationMsg={motivationMsg}
-            profileIcon={profileIcon} onProfileIcon={handleProfileIcon}
+            xp={xp} streak={streak} shields={shields} showCombo={showCombo}
+            motivationMsg={motivationMsg} onCloseMotivation={closeMotivation}
+            profileIcon={profileIcon} profilePhoto={profilePhoto}
+            onProfileIcon={handleProfileIcon} onProfilePhoto={handleProfilePhoto}
             onBuyShield={handleBuyShield} onLogout={handleLogout} />
       }
     </>
