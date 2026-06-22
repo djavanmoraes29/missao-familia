@@ -701,8 +701,6 @@ function EditRow({ item, icons, isXp, onSave, onCancel, C }) {
   const [val,     setVal]     = useState(isXp?item.xp:item.cost)
   const [tipo,    setTipo]    = useState(item.tipo||'diaria')
   const [selIcon, setSelIcon] = useState(item.icon||icons[0])
-  const vals = isXp ? [5,10,15,20,30] : [50,80,100,150,200,300,500]
-
   return (
     <div style={{background:C.surface2,border:`1px solid ${C.pri}44`,borderRadius:14,padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
       <div style={{display:'flex',gap:8}}>
@@ -718,12 +716,10 @@ function EditRow({ item, icons, isXp, onSave, onCancel, C }) {
           ))}
         </div>
       )}
-      <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
         <span style={{color:C.muted,fontSize:12}}>{isXp?'XP:':'Custo:'}</span>
-        {vals.map(v=>(
-          <button key={v} className="btn" onClick={()=>setVal(v)}
-            style={{background:val===v?C.pri:C.surface,border:`1px solid ${val===v?C.pri:C.border}`,borderRadius:8,padding:'4px 10px',color:val===v?'white':C.muted,fontSize:12,fontWeight:600}}>{v}</button>
-        ))}
+        <input type="number" min="1" value={val} onChange={e=>setVal(Number(e.target.value)||1)}
+          style={{width:90,background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:'6px 10px',color:C.txt,fontSize:13,fontWeight:700}} />
         <div style={{marginLeft:'auto',display:'flex',gap:8}}>
           <button className="btn" onClick={onCancel} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:'6px 12px',color:C.muted,fontSize:13}}>Cancelar</button>
           <button className="btn" onClick={()=>onSave({...item,title:title.trim()||item.title,icon:selIcon,tipo,...(isXp?{xp:val}:{cost:val})})}
@@ -765,12 +761,10 @@ function ParentTarefas({ tasks, setTasks }) {
             </button>
           ))}
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{color:P.muted,fontSize:13}}>XP:</span>
-          {[5,10,15,20,30].map(v=>(
-            <button key={v} className="btn" onClick={()=>setXpVal(v)}
-              style={{background:xpVal===v?P.pri:P.surface2,border:`1px solid ${xpVal===v?P.pri:P.border}`,borderRadius:8,padding:'6px 12px',color:xpVal===v?'white':P.muted,fontSize:13,fontWeight:600}}>{v}</button>
-          ))}
+          <input type="number" min="1" value={xpVal} onChange={e=>setXpVal(Number(e.target.value)||1)}
+            style={{width:90,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'8px 12px',color:P.txt,fontSize:14,fontWeight:700}} />
           <button className="btn" onClick={add} style={{marginLeft:'auto',background:P.pri,border:'none',borderRadius:10,padding:'8px 18px',color:'white',fontWeight:700,fontSize:14}}>Adicionar</button>
         </div>
       </div>
@@ -824,12 +818,11 @@ function ParentRecompensas({ rewards, setRewards }) {
           <input value={title} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="Nome da recompensa..."
             style={{flex:1,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'10px 14px',color:P.txt,fontSize:14}} />
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
           <span style={{color:P.muted,fontSize:13}}>Custo:</span>
-          {[50,80,100,150,200,300,500].map(v=>(
-            <button key={v} className="btn" onClick={()=>setCost(v)}
-              style={{background:cost===v?P.acc:P.surface2,border:`1px solid ${cost===v?P.acc:P.border}`,borderRadius:8,padding:'5px 10px',color:cost===v?'white':P.muted,fontSize:12,fontWeight:600}}>{v}</button>
-          ))}
+          <input type="number" min="1" value={cost} onChange={e=>setCost(Number(e.target.value)||1)}
+            style={{width:100,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:10,padding:'8px 12px',color:P.txt,fontSize:14,fontWeight:700}} />
+          <span style={{color:P.muted,fontSize:13}}>XP</span>
           <button className="btn" onClick={add} style={{marginLeft:'auto',background:P.pri,border:'none',borderRadius:10,padding:'8px 18px',color:'white',fontWeight:700,fontSize:14}}>Adicionar</button>
         </div>
       </div>
