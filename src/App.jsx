@@ -66,7 +66,7 @@ const TASKS_INIT = [
 ]
 
 const REWARDS_INIT = [
-  { id:1, title:'Escudo de Streak',     cost:200,  icon:'🛡️', shield:true  },
+  { id:1, title:'Escudo de Sequência',     cost:200,  icon:'🛡️', shield:true  },
   { id:2, title:'Escolher o filme',     cost:400,  icon:'🎬', shield:false },
   { id:3, title:'Pizza especial',       cost:800,  icon:'🍕', shield:false },
   { id:4, title:'Ir ao cinema',         cost:1200, icon:'🎭', shield:false },
@@ -192,16 +192,16 @@ function LoginScreen() {
 // ════════════════════════════════════════════════════════════════════
 // SHARED
 // ════════════════════════════════════════════════════════════════════
-function Confirm({ msg, onYes, onNo, danger }) {
+function Confirm({ msg, title, onYes, onNo, danger, yesLabel='Confirmar', noLabel='Cancelar' }) {
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:99,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
-      <div style={{background:'#1C1A2E',border:'1px solid #2E2C48',borderRadius:20,padding:28,maxWidth:320,width:'100%',textAlign:'center'}}>
-        <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
-        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:16,marginBottom:8}}>Tem certeza?</div>
-        <div style={{color:'#9896B4',fontSize:14,marginBottom:24}}>{msg}</div>
-        <div style={{display:'flex',gap:10}}>
-          <button className="btn" onClick={onNo}  style={{flex:1,background:'#252340',border:'1px solid #2E2C48',borderRadius:12,padding:'12px',color:'#9896B4',fontWeight:600,fontSize:14}}>Cancelar</button>
-          <button className="btn" onClick={onYes} style={{flex:1,background:danger?'#FF4D6D':'#7C5CFC',border:'none',borderRadius:12,padding:'12px',color:'white',fontWeight:700,fontSize:14}}>Confirmar</button>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',zIndex:99,display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{background:'#1C1A2E',border:'1px solid #2E2C48',borderRadius:22,padding:'28px 24px',maxWidth:320,width:'100%',textAlign:'center'}}>
+        <div style={{fontSize:38,marginBottom:12}}>{danger?'⚠️':'✅'}</div>
+        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:17,marginBottom:8}}>{title||'Tem certeza?'}</div>
+        {msg && <div style={{color:'#9896B4',fontSize:14,marginBottom:24,lineHeight:1.5,whiteSpace:'pre-line'}}>{msg}</div>}
+        <div style={{display:'flex',gap:10,marginTop:msg?0:24}}>
+          <button className="btn" onClick={onNo}  style={{flex:1,background:'#252340',border:'1px solid #2E2C48',borderRadius:12,padding:'13px',color:'#9896B4',fontWeight:600,fontSize:14}}>{noLabel}</button>
+          <button className="btn" onClick={onYes} style={{flex:1,background:danger?'#FF4D6D':'#7C5CFC',border:'none',borderRadius:12,padding:'13px',color:'white',fontWeight:700,fontSize:14}}>{yesLabel}</button>
         </div>
       </div>
     </div>
@@ -282,19 +282,22 @@ function ComboOverlay() {
 
 function MotivationToast({ msg, onClose }) {
   return (
-    <div style={{position:'fixed',top:74,left:'50%',transform:'translateX(-50%)',zIndex:60,width:'92%',maxWidth:360}}>
-      <div className="fade-up" style={{background:'linear-gradient(135deg,#1C1A2E,#2A2050)',border:'1px solid rgba(124,92,252,.5)',borderRadius:18,padding:'16px 20px',display:'flex',alignItems:'flex-start',gap:12,boxShadow:'0 12px 40px rgba(0,0,0,.6)'}}>
-        <span style={{fontSize:30,lineHeight:1,flexShrink:0}}>💬</span>
-        <span style={{flex:1,color:'#F2F0FF',fontWeight:600,fontSize:15,lineHeight:1.5}}>{msg}</span>
+    <div style={{position:'fixed',inset:0,zIndex:60,display:'flex',alignItems:'center',justifyContent:'center',padding:24,pointerEvents:'none'}}>
+      <div className="fade-up" style={{pointerEvents:'all',background:'linear-gradient(135deg,#1C1A2E,#2A2050)',border:'1px solid rgba(124,92,252,.5)',borderRadius:22,padding:'28px 24px',display:'flex',flexDirection:'column',alignItems:'center',gap:14,boxShadow:'0 20px 60px rgba(0,0,0,.7)',maxWidth:320,width:'100%',textAlign:'center'}}>
+        <span style={{fontSize:44,lineHeight:1}}>💬</span>
+        <span style={{color:'#F2F0FF',fontWeight:700,fontSize:17,lineHeight:1.5}}>{msg}</span>
         <button className="btn" onClick={onClose}
-          style={{background:'rgba(255,255,255,.1)',border:'none',borderRadius:'50%',width:30,height:30,color:'#9896B4',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:-2}}>×</button>
+          style={{background:'rgba(124,92,252,.25)',border:'1px solid rgba(124,92,252,.4)',borderRadius:12,padding:'10px 32px',color:'#A688FF',fontSize:14,fontWeight:700,cursor:'pointer',marginTop:4}}>
+          Fechar
+        </button>
       </div>
     </div>
   )
 }
 
 function TaskGroup({ tipo, tasks, done, onToggle }) {
-  const [popId, setPopId] = useState(null)
+  const [popId,       setPopId]       = useState(null)
+  const [confirmTask, setConfirmTask] = useState(null)
   const info     = TIPOS.find(t=>t.key===tipo)
   const myTasks  = tasks.filter(t=>t.tipo===tipo)
   if (myTasks.length===0) return null
@@ -305,12 +308,29 @@ function TaskGroup({ tipo, tasks, done, onToggle }) {
   const allDone  = doneCount===myTasks.length
 
   const handle = task => {
-    if (!done.includes(task.id)) { setPopId(task.id); setTimeout(()=>setPopId(null),800) }
-    onToggle(task)
+    if (done.includes(task.id)) { onToggle(task) }   // desmarcar: direto
+    else { setConfirmTask(task) }                      // marcar: pede confirmação
+  }
+
+  const confirmDone = () => {
+    setPopId(confirmTask.id)
+    setTimeout(()=>setPopId(null), 800)
+    onToggle(confirmTask)
+    setConfirmTask(null)
   }
 
   return (
     <div style={{marginBottom:20}}>
+      {confirmTask && (
+        <Confirm
+          title="Tarefa concluída?"
+          msg={`"${confirmTask.title}"\n\n+${confirmTask.xp} XP`}
+          yesLabel="Sim, fiz! ✓"
+          noLabel="Ainda não"
+          onYes={confirmDone}
+          onNo={()=>setConfirmTask(null)}
+        />
+      )}
       {/* header do grupo */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -403,7 +423,7 @@ function TeenLoja({ rewards, xp, shields, onBuyShield }) {
       {shields>0 && (
         <div style={{background:'rgba(0,214,143,.1)',border:'1px solid rgba(0,214,143,.3)',borderRadius:14,padding:'12px 16px',marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
           <span style={{fontSize:24}}>🛡️</span>
-          <span style={{color:'#00D68F',fontWeight:600,fontSize:14}}>{shields} escudo{shields>1?'s':''} de streak ativo{shields>1?'s':''}</span>
+          <span style={{color:'#00D68F',fontWeight:600,fontSize:14}}>{shields} escudo{shields>1?'s':''} de sequência ativo{shields>1?'s':''}</span>
         </div>
       )}
 
@@ -417,7 +437,7 @@ function TeenLoja({ rewards, xp, shields, onBuyShield }) {
               onClick={()=>!isClaimed&&handleClick(r)}>
               <div style={{fontSize:36,marginBottom:8}}>{r.icon}</div>
               <div style={{color:T.txt,fontWeight:700,fontSize:13,marginBottom:4}}>{r.title}</div>
-              {r.shield && <div style={{color:T.muted,fontSize:11,marginBottom:6}}>Protege 1 dia de streak</div>}
+              {r.shield && <div style={{color:T.muted,fontSize:11,marginBottom:6}}>Protege 1 dia de sequência</div>}
               {isClaimed
                 ? <div style={{color:T.ok,fontWeight:700,fontSize:13}}>✓ Resgatado!</div>
                 : <div style={{display:'flex',alignItems:'center',gap:4}}>
@@ -841,7 +861,7 @@ function ParentRecompensas({ rewards, setRewards }) {
                 </div>
                 <div style={{fontSize:30,marginBottom:6}}>{r.icon}</div>
                 <div style={{color:P.txt,fontWeight:700,fontSize:13,marginBottom:4,paddingRight:r.shield?0:56}}>{r.title}</div>
-                {r.shield&&<div style={{color:P.muted,fontSize:11,marginBottom:4}}>Protege 1 streak</div>}
+                {r.shield&&<div style={{color:P.muted,fontSize:11,marginBottom:4}}>Protege 1 dia de sequência</div>}
                 <div style={{color:P.acc,fontWeight:700,fontSize:13}}>{r.cost} XP</div>
               </div>
         ))}
