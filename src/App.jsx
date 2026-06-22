@@ -27,25 +27,35 @@ const getMonday = () => {
 
 // ─── dados iniciais ──────────────────────────────────────────────────
 const TASKS_INIT = [
-  { id:1, title:'Arrumar a cama',       xp:5,  icon:'🛏️', tipo:'diaria'  },
-  { id:2, title:'Lavar própria louça',  xp:10, icon:'🍽️', tipo:'diaria'  },
-  { id:3, title:'Cumprir horários',     xp:10, icon:'⏰', tipo:'diaria'  },
-  { id:4, title:'Estudar sem lembrete', xp:15, icon:'📚', tipo:'diaria'  },
-  { id:5, title:'Ler 10 páginas',       xp:10, icon:'📖', tipo:'diaria'  },
-  { id:6, title:'Organizar o quarto',   xp:20, icon:'🧹', tipo:'semanal' },
-  { id:7, title:'Ajudar em casa',       xp:20, icon:'🏠', tipo:'semanal' },
-  { id:8, title:'Atividade física 3x',  xp:30, icon:'💪', tipo:'semanal' },
-  { id:9, title:'Meta de leitura',      xp:50, icon:'📚', tipo:'mensal'  },
+  // Diárias
+  { id:1,  title:'Arrumar a cama antes das 9h',              xp:3,  icon:'🛏️', tipo:'diaria'  },
+  { id:2,  title:'Lavar a própria louça',                    xp:3,  icon:'🍽️', tipo:'diaria'  },
+  { id:3,  title:'Manter o quarto arrumado',                 xp:4,  icon:'🧹', tipo:'diaria'  },
+  { id:4,  title:'Cumprir horário de dormir (sem celular)',  xp:5,  icon:'⏰', tipo:'diaria'  },
+  { id:5,  title:'Estudar 45 min sem ninguém pedir',        xp:12, icon:'📚', tipo:'diaria'  },
+  { id:6,  title:'Sem celular nas refeições',               xp:4,  icon:'🚫', tipo:'diaria'  },
+  { id:7,  title:'Ler pelo menos 15 páginas',               xp:8,  icon:'📖', tipo:'diaria'  },
+  // Semanais
+  { id:8,  title:'Faxina completa do quarto',               xp:20, icon:'✨', tipo:'semanal' },
+  { id:9,  title:'Ajudar nas tarefas da casa (mín. 2x)',    xp:20, icon:'🏠', tipo:'semanal' },
+  { id:10, title:'Atividade física 3× na semana',           xp:25, icon:'💪', tipo:'semanal' },
+  { id:11, title:'Fazer algo gentil/prestativo espontâneo', xp:15, icon:'💛', tipo:'semanal' },
+  { id:12, title:'Semana sem atraso ou compromisso perdido',xp:20, icon:'🎯', tipo:'semanal' },
+  // Mensais
+  { id:13, title:'Nota ≥ 7 em todas as provas/trabalhos',   xp:80, icon:'🎓', tipo:'mensal'  },
+  { id:14, title:'Concluir meta de leitura (1 livro/80 pág)',xp:60, icon:'📚', tipo:'mensal'  },
+  { id:15, title:'Mês sem conflito sério com a família',    xp:50, icon:'❤️', tipo:'mensal'  },
+  { id:16, title:'Completar objetivo pessoal combinado',    xp:40, icon:'⭐', tipo:'mensal'  },
 ]
 
 const REWARDS_INIT = [
-  { id:1,       title:'Escudo de Streak',    cost:80,   icon:'🛡️', shield:true  },
-  { id:2,       title:'Escolher o filme',    cost:100,  icon:'🎬', shield:false },
-  { id:3,       title:'Pizza especial',      cost:150,  icon:'🍕', shield:false },
-  { id:4,       title:'Ir ao cinema',        cost:200,  icon:'🎭', shield:false },
-  { id:5,       title:'R$ 30 bônus',         cost:300,  icon:'💰', shield:false },
-  { id:6,       title:'Algo desejado',       cost:500,  icon:'🎁', shield:false },
-  { id:7,       title:'Experiência especial',cost:1000, icon:'⭐', shield:false },
+  { id:1, title:'Escudo de Streak',     cost:200,  icon:'🛡️', shield:true  },
+  { id:2, title:'Escolher o filme',     cost:400,  icon:'🎬', shield:false },
+  { id:3, title:'Pizza especial',       cost:800,  icon:'🍕', shield:false },
+  { id:4, title:'Ir ao cinema',         cost:1200, icon:'🎭', shield:false },
+  { id:5, title:'R$ 30 bônus',          cost:2000, icon:'💰', shield:false },
+  { id:6, title:'Algo muito desejado',  cost:3500, icon:'🎁', shield:false },
+  { id:7, title:'Experiência especial', cost:6000, icon:'✨', shield:false },
 ]
 
 const LEVELS = [
