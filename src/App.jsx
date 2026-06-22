@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { db } from './firebase'
+import { doc, onSnapshot, setDoc } from 'firebase/firestore'
+
+const DOC_REF = doc(db, 'familia', 'sofia')
 
 // ─── dados iniciais ──────────────────────────────────────────────────
 const TASKS_INIT = [
@@ -545,20 +549,66 @@ export default function App() {
   const [tasks,   setTasks]   = useState(TASKS_INIT)
   const [rewards, setRewards] = useState(REWARDS_INIT)
   const [done,    setDone]    = useState([])
-  const [xp,      setXp]      = useState(120) // Sofia começa no nível 2 (demo)
+  const [xp,      setXp]      = useState(120)
+  const [loading, setLoading] = useState(true)
+
+  // Carrega e escuta mudanças em tempo real do Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(DOC_REF, (snap) => {
+      if (snap.exists()) {
+        const d = snap.data()
+        if (d.tasks)   setTasks(d.tasks)
+        if (d.rewards) setRewards(d.rewards)
+        if (d.done)    setDone(d.done)
+        if (d.xp != null) setXp(d.xp)
+      } else {
+        // Primeira vez: salva os dados iniciais no Firestore
+        setDoc(DOC_REF, { tasks: TASKS_INIT, rewards: REWARDS_INIT, done: [], xp: 120 })
+      }
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [])
+
+  const save = (patch) => setDoc(DOC_REF, patch, { merge: true })
+
+  const handleSetTasks = (updater) => {
+    setTasks(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      save({ tasks: next })
+      return next
+    })
+  }
+
+  const handleSetRewards = (updater) => {
+    setRewards(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      save({ rewards: next })
+      return next
+    })
+  }
 
   const handleDone = (task) => {
     if (done.includes(task.id)) return
-    setDone(p => [...p, task.id])
-    setXp(p => p + task.xp)
+    const newDone = [...done, task.id]
+    const newXp   = xp + task.xp
+    setDone(newDone)
+    setXp(newXp)
+    save({ done: newDone, xp: newXp })
   }
+
+  if (loading) return (
+    <div style={{ background:'#07080F', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ color:'#6B7280', fontSize:16 }}>Carregando...</div>
+    </div>
+  )
 
   return (
     <>
       <style>{CSS}</style>
       {!role           && <HomeScreen onSelect={setRole} />}
       {role === 'teen'   && <TeenApp   tasks={tasks} rewards={rewards} done={done} onDone={handleDone} xp={xp} onBack={() => setRole(null)} />}
-      {role === 'parent' && <ParentApp tasks={tasks} setTasks={setTasks} rewards={rewards} setRewards={setRewards} xp={xp} done={done} onBack={() => setRole(null)} />}
+      {role === 'parent' && <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards} xp={xp} done={done} onBack={() => setRole(null)} />}
     </>
   )
 }
