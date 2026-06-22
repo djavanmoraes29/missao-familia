@@ -1,47 +1,63 @@
 import { useState, useEffect } from 'react'
-import { db } from './firebase'
+import { db, auth } from './firebase'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
 
-const DOC_REF = doc(db, 'familia', 'sofia')
+// ─── config ──────────────────────────────────────────────────────────
+const DOC_REF      = doc(db, 'familia', 'sofia')
+const PARENT_EMAIL = 'thatiana@mae.com'
+const DAYS         = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+const getToday     = () => new Date().toISOString().split('T')[0]
+
+const getWeekChart = (history, done, tasks) => {
+  const maxXp    = tasks.reduce((s,t) => s+t.xp, 0) || 1
+  const todayXp  = tasks.filter(t => done.includes(t.id)).reduce((s,t) => s+t.xp, 0)
+  return Array.from({length:7}, (_,i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6-i))
+    const dateStr = d.toISOString().split('T')[0]
+    const isToday = i === 6
+    const entry   = history.find(h => h.date === dateStr)
+    const xpVal   = isToday ? todayXp : (entry?.xp ?? 0)
+    return { day: DAYS[d.getDay()], pct: Math.round((xpVal/maxXp)*100), isToday, xp: xpVal }
+  })
+}
 
 // ─── dados iniciais ──────────────────────────────────────────────────
 const TASKS_INIT = [
-  { id: 1, title: 'Arrumar a cama',        xp: 5,  icon: '🛏️' },
-  { id: 2, title: 'Organizar o quarto',    xp: 10, icon: '🧹' },
-  { id: 3, title: 'Lavar própria louça',   xp: 10, icon: '🍽️' },
-  { id: 4, title: 'Ajudar em casa',        xp: 15, icon: '🏠' },
-  { id: 5, title: 'Cumprir horários',      xp: 10, icon: '⏰' },
-  { id: 6, title: 'Estudar sem lembrete',  xp: 15, icon: '📚' },
-  { id: 7, title: 'Atividade física',      xp: 15, icon: '💪' },
-  { id: 8, title: 'Ler 10 páginas',        xp: 10, icon: '📖' },
+  { id: 1, title: 'Arrumar a cama',       xp: 5,  icon: '🛏️' },
+  { id: 2, title: 'Organizar o quarto',   xp: 10, icon: '🧹' },
+  { id: 3, title: 'Lavar própria louça',  xp: 10, icon: '🍽️' },
+  { id: 4, title: 'Ajudar em casa',       xp: 15, icon: '🏠' },
+  { id: 5, title: 'Cumprir horários',     xp: 10, icon: '⏰' },
+  { id: 6, title: 'Estudar sem lembrete', xp: 15, icon: '📚' },
+  { id: 7, title: 'Atividade física',     xp: 15, icon: '💪' },
+  { id: 8, title: 'Ler 10 páginas',       xp: 10, icon: '📖' },
 ]
 
 const REWARDS_INIT = [
-  { id: 1, title: 'Escolher o filme',    cost: 100,  icon: '🎬' },
-  { id: 2, title: 'Pizza especial',      cost: 150,  icon: '🍕' },
-  { id: 3, title: 'Ir ao cinema',        cost: 200,  icon: '🎭' },
-  { id: 4, title: 'R$ 30 bônus',         cost: 300,  icon: '💰' },
-  { id: 5, title: 'Algo desejado',       cost: 500,  icon: '🎁' },
-  { id: 6, title: 'Experiência especial',cost: 1000, icon: '⭐' },
+  { id: 1, title: 'Escolher o filme',     cost: 100,  icon: '🎬' },
+  { id: 2, title: 'Pizza especial',       cost: 150,  icon: '🍕' },
+  { id: 3, title: 'Ir ao cinema',         cost: 200,  icon: '🎭' },
+  { id: 4, title: 'R$ 30 bônus',          cost: 300,  icon: '💰' },
+  { id: 5, title: 'Algo desejado',        cost: 500,  icon: '🎁' },
+  { id: 6, title: 'Experiência especial', cost: 1000, icon: '⭐' },
 ]
 
 const LEVELS = [
-  { n: 1, name: 'Aprendiz',      icon: '🌱', min: 0,    max: 99         },
-  { n: 2, name: 'Responsável',   icon: '⭐', min: 100,  max: 299        },
-  { n: 3, name: 'Comprometida',  icon: '🔥', min: 300,  max: 599        },
-  { n: 4, name: 'Exemplo',       icon: '💎', min: 600,  max: 999        },
-  { n: 5, name: 'Líder',         icon: '👑', min: 1000, max: Infinity   },
+  { n:1, name:'Aprendiz',     icon:'🌱', min:0,    max:99       },
+  { n:2, name:'Responsável',  icon:'⭐', min:100,  max:299      },
+  { n:3, name:'Comprometida', icon:'🔥', min:300,  max:599      },
+  { n:4, name:'Exemplo',      icon:'💎', min:600,  max:999      },
+  { n:5, name:'Líder',        icon:'👑', min:1000, max:Infinity },
 ]
 
 const BADGES = [
-  { id: 1, icon: '📚', title: 'Estudiosa',   desc: 'Estudou 10 dias sem lembrete',       earned: true  },
-  { id: 2, icon: '🏅', title: 'Organização', desc: '7 dias seguidos arrumando o quarto', earned: false },
-  { id: 3, icon: '🎖️', title: 'Disciplina',  desc: '30 dias sem perder tarefas',         earned: false },
-  { id: 4, icon: '🏆', title: 'Família',     desc: '50 tarefas domésticas concluídas',   earned: false },
+  { id:1, icon:'📚', title:'Estudiosa',   desc:'Estudou 10 dias sem lembrete',       earned:false },
+  { id:2, icon:'🏅', title:'Organização', desc:'7 dias seguidos arrumando o quarto', earned:false },
+  { id:3, icon:'🎖️', title:'Disciplina',  desc:'30 dias sem perder tarefas',         earned:false },
+  { id:4, icon:'🏆', title:'Família',     desc:'50 tarefas domésticas concluídas',   earned:false },
 ]
-
-const WEEK_MOCK = [72, 88, 50, 95, null, 0, 0] // Sex = hoje (null = calcular)
-const DAYS      = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
 // ─── utils ──────────────────────────────────────────────────────────
 const getLvl    = (xp) => LEVELS.find(l => xp >= l.min && (l.max === Infinity || xp <= l.max)) || LEVELS[0]
@@ -51,21 +67,23 @@ const getLvlPct = (xp) => {
   return Math.min(100, Math.round(((xp - l.min) / (l.max - l.min + 1)) * 100))
 }
 
-// ─── paletas de cores ────────────────────────────────────────────────
-const T = { // teen — roxo/laranja
+// ─── paletas ─────────────────────────────────────────────────────────
+const T = {
   bg:'#0C0B16', surface:'#1C1A2E', surface2:'#252340', border:'#2E2C48',
   pri:'#7C5CFC', priL:'#A688FF', acc:'#FF6F3C', ok:'#00D68F',
   txt:'#F2F0FF', muted:'#9896B4',
 }
-const P = { // parent — azul escuro
+const P = {
   bg:'#08111F', surface:'#0F1E35', surface2:'#162843', border:'#1E334F',
   pri:'#3D7FFF', priL:'#7AAAFF', acc:'#F59E0B', ok:'#22C55E',
   txt:'#EFF6FF', muted:'#6B84A8',
 }
 
-// ─── animações via <style> ───────────────────────────────────────────
+// ─── animações ───────────────────────────────────────────────────────
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+
+  * { font-family: 'Space Grotesk', sans-serif; box-sizing: border-box; }
 
   .bar        { transition: width .7s cubic-bezier(.34,1.3,.64,1); }
   .card-hover { transition: transform .15s, box-shadow .15s; }
@@ -86,9 +104,72 @@ const CSS = `
   @keyframes checkIn { 0%{transform:scale(0) rotate(-45deg)} 70%{transform:scale(1.2)} 100%{transform:scale(1)} }
   .check-in { animation: checkIn .3s ease; }
 
+  input::placeholder { color: #6B7280; }
+  input:focus { border-color: #7C5CFC !important; }
+
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 `
+
+// ════════════════════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════════════════════
+
+function LoginScreen() {
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+
+  const handleLogin = async () => {
+    if (!email || !password) return
+    setLoading(true)
+    setError('')
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password)
+    } catch {
+      setError('E-mail ou senha incorretos.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ background:'#07080F', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:28 }}>
+      <div style={{ textAlign:'center', marginBottom:44 }}>
+        <div style={{ fontSize:60, marginBottom:14 }}>🏠</div>
+        <h1 style={{ color:'#F2F0FF', fontSize:32, fontWeight:800, letterSpacing:'-0.5px', margin:0 }}>Missão Família</h1>
+        <p style={{ color:'#6B7280', fontSize:14, marginTop:8 }}>Responsabilidade que vira conquista</p>
+      </div>
+
+      <div style={{ width:'100%', maxWidth:320, display:'flex', flexDirection:'column', gap:12 }}>
+        <input
+          type="email"
+          placeholder="E-mail"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          style={{ background:'#1C1A2E', border:'1px solid #2E2C48', borderRadius:12, padding:'14px 16px', color:'#F2F0FF', fontSize:15, outline:'none', width:'100%' }}
+        />
+        <input
+          type="password"
+          placeholder="Senha"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          style={{ background:'#1C1A2E', border:'1px solid #2E2C48', borderRadius:12, padding:'14px 16px', color:'#F2F0FF', fontSize:15, outline:'none', width:'100%' }}
+        />
+        {error && <div style={{ color:'#FF4D6D', fontSize:13, textAlign:'center' }}>{error}</div>}
+        <button
+          className="btn"
+          onClick={handleLogin}
+          disabled={loading}
+          style={{ background:'linear-gradient(135deg,#7C5CFC,#A688FF)', border:'none', borderRadius:12, padding:'14px', color:'white', fontWeight:700, fontSize:16, opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? 'Entrando...' : 'Entrar'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ════════════════════════════════════════════════════════════════════
 // COMPONENTES COMPARTILHADOS
@@ -135,19 +216,17 @@ function TeenMissoes({ tasks, done, onDone }) {
 
   return (
     <div style={{ padding:'16px 16px 100px' }}>
-      {/* barra de progresso diário */}
       <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, padding:16, marginBottom:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-          <span style={{ color:T.txt, fontWeight:600 }}>Progresso de hoje</span>
+          <span style={{ color:T.txt, fontWeight:600 }}>Missões de hoje</span>
           <span style={{ color:T.pri, fontWeight:700 }}>{todayXp} / {totalXp} XP</span>
         </div>
         <div style={{ background:T.surface2, borderRadius:99, height:8, overflow:'hidden' }}>
           <div className="bar" style={{ width:`${pct}%`, height:'100%', background:`linear-gradient(90deg,${T.pri},${T.acc})`, borderRadius:99 }} />
         </div>
-        <div style={{ color:T.muted, fontSize:12, marginTop:6 }}>{done.length} de {tasks.length} tarefas concluídas</div>
+        <div style={{ color:T.muted, fontSize:12, marginTop:6 }}>{done.length} de {tasks.length} tarefas concluídas hoje</div>
       </div>
 
-      {/* lista de tarefas */}
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         {tasks.map((task, i) => {
           const isDone    = done.includes(task.id)
@@ -174,7 +253,6 @@ function TeenMissoes({ tasks, done, onDone }) {
         })}
       </div>
 
-      {/* mensagem de parabéns */}
       {done.length === tasks.length && tasks.length > 0 && (
         <div className="fade-up" style={{ marginTop:20, background:`linear-gradient(135deg,rgba(124,92,252,.15),rgba(255,111,60,.1))`, border:`1px solid rgba(255,111,60,.3)`, borderRadius:16, padding:20, textAlign:'center' }}>
           <div style={{ fontSize:40, marginBottom:8 }}>🎉</div>
@@ -223,12 +301,12 @@ function TeenLoja({ rewards, totalXp }) {
   )
 }
 
-function TeenTrofeus({ xp }) {
+function TeenTrofeus({ xp, streak }) {
   const lvl = getLvl(xp)
   const pct = getLvlPct(xp)
   return (
     <div style={{ padding:'16px 16px 100px' }}>
-      <div style={{ background:`linear-gradient(135deg,${T.pri}22,${T.acc}12)`, border:`1px solid ${T.pri}40`, borderRadius:18, padding:'18px 20px', marginBottom:20 }}>
+      <div style={{ background:`linear-gradient(135deg,${T.pri}22,${T.acc}12)`, border:`1px solid ${T.pri}40`, borderRadius:18, padding:'18px 20px', marginBottom:16 }}>
         <div style={{ fontSize:48, marginBottom:8 }}>{lvl.icon}</div>
         <div style={{ color:T.txt, fontWeight:800, fontSize:22 }}>{lvl.name}</div>
         <div style={{ color:T.muted, fontSize:14, marginTop:2 }}>Nível {lvl.n} • {xp} XP acumulados</div>
@@ -236,6 +314,15 @@ function TeenTrofeus({ xp }) {
           <div className="bar" style={{ width:`${pct}%`, height:'100%', background:`linear-gradient(90deg,${T.pri},${T.acc})`, borderRadius:99 }} />
         </div>
       </div>
+
+      <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, padding:'14px 18px', marginBottom:16, display:'flex', alignItems:'center', gap:14 }}>
+        <span style={{ fontSize:32 }}>🔥</span>
+        <div>
+          <div style={{ color:T.txt, fontWeight:700, fontSize:16 }}>{streak} dias seguidos</div>
+          <div style={{ color:T.muted, fontSize:13 }}>Sequência atual de missões</div>
+        </div>
+      </div>
+
       <div style={{ color:T.txt, fontWeight:700, fontSize:15, marginBottom:12 }}>🎖️ Medalhas</div>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {BADGES.map((b, i) => (
@@ -254,19 +341,17 @@ function TeenTrofeus({ xp }) {
   )
 }
 
-function TeenApp({ tasks, rewards, done, onDone, xp, onBack }) {
+function TeenApp({ tasks, rewards, done, onDone, xp, streak, onLogout }) {
   const [tab, setTab] = useState('missoes')
   return (
     <div style={{ background:T.bg, minHeight:'100vh', maxWidth:440, margin:'0 auto', position:'relative' }}>
-      {/* cabeçalho */}
       <div style={{ background:`linear-gradient(180deg,#1A1535 0%,${T.bg} 100%)`, padding:'20px 20px 16px', borderBottom:`1px solid ${T.border}` }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <div style={{ width:46, height:46, borderRadius:'50%', background:`linear-gradient(135deg,${T.pri},${T.acc})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>😊</div>
             <div>
               <div style={{ color:T.muted, fontSize:12 }}>Bem-vinda de volta,</div>
-              {/* 👆 Troque "Sofia" pelo nome real da sua filha */}
-              <div style={{ color:T.txt, fontWeight:700, fontSize:17 }}>Sofia</div>
+              <div style={{ color:T.txt, fontWeight:700, fontSize:17 }}>Kauanny</div>
             </div>
           </div>
           <div style={{ textAlign:'right' }}>
@@ -277,12 +362,10 @@ function TeenApp({ tasks, rewards, done, onDone, xp, onBack }) {
         <XpBar xp={xp} C={T} />
       </div>
 
-      {/* conteúdo */}
       {tab === 'missoes' && <TeenMissoes tasks={tasks} done={done} onDone={onDone} />}
       {tab === 'loja'    && <TeenLoja rewards={rewards} totalXp={xp} />}
-      {tab === 'trofeus' && <TeenTrofeus xp={xp} />}
+      {tab === 'trofeus' && <TeenTrofeus xp={xp} streak={streak} />}
 
-      {/* navegação */}
       <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:440, background:T.surface, borderTop:`1px solid ${T.border}`, display:'flex', padding:'8px 0 16px' }}>
         {[['missoes','⚡','Missões'],['loja','🛒','Loja'],['trofeus','🏆','Troféus']].map(([id,ic,label]) => (
           <button key={id} className="btn" onClick={() => setTab(id)} style={{ flex:1, background:'none', border:'none', display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'6px 0' }}>
@@ -292,7 +375,7 @@ function TeenApp({ tasks, rewards, done, onDone, xp, onBack }) {
           </button>
         ))}
       </div>
-      <button className="btn" onClick={onBack} style={{ position:'fixed', top:14, right:14, background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'5px 12px', color:T.muted, fontSize:13 }}>← Sair</button>
+      <button className="btn" onClick={onLogout} style={{ position:'fixed', top:14, right:14, background:T.surface2, border:`1px solid ${T.border}`, borderRadius:8, padding:'5px 12px', color:T.muted, fontSize:13 }}>Sair</button>
     </div>
   )
 }
@@ -301,22 +384,21 @@ function TeenApp({ tasks, rewards, done, onDone, xp, onBack }) {
 // TELAS DOS PAIS
 // ════════════════════════════════════════════════════════════════════
 
-function ParentHome({ tasks, done, xp, rewards }) {
+function ParentHome({ tasks, done, xp, rewards, streak, history }) {
   const todayXp  = tasks.filter(t => done.includes(t.id)).reduce((s,t) => s+t.xp, 0)
-  const pct      = tasks.length ? Math.round((done.length/tasks.length)*100) : 0
+  const totalXp  = tasks.reduce((s,t) => s+t.xp, 0)
+  const pct      = totalXp ? Math.round((done.length/tasks.length)*100) : 0
   const lvl      = getLvl(xp)
-  const weekData = WEEK_MOCK.map((v,i) => i === 4 ? pct : v)
   const nextRwd  = rewards.filter(r => r.cost > xp).sort((a,b) => a.cost-b.cost)[0]
+  const weekData = getWeekChart(history, done, tasks)
 
   return (
     <div style={{ padding:'16px 16px 100px', display:'flex', flexDirection:'column', gap:16 }}>
-      {/* card da Sofia */}
       <div style={{ background:`linear-gradient(135deg,${P.pri}1A,${P.acc}0D)`, border:`1px solid ${P.pri}40`, borderRadius:18, padding:20 }}>
         <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
           <div style={{ width:52, height:52, borderRadius:'50%', background:`linear-gradient(135deg,${P.pri},#6366F1)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>😊</div>
           <div style={{ flex:1 }}>
-            {/* 👆 Troque pelo nome e idade reais */}
-            <div style={{ color:P.txt, fontWeight:700, fontSize:18 }}>Sofia, 15 anos</div>
+            <div style={{ color:P.txt, fontWeight:700, fontSize:18 }}>Kauanny</div>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
               <span style={{ fontSize:15 }}>{lvl.icon}</span>
               <span style={{ color:P.muted, fontSize:13 }}>{lvl.name} · Nível {lvl.n}</span>
@@ -330,38 +412,36 @@ function ParentHome({ tasks, done, xp, rewards }) {
         <XpBar xp={xp} C={P} />
       </div>
 
-      {/* stats de hoje */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:10 }}>
         {[
-          { icon:'✅', val:done.length, label:'Feitas hoje' },
-          { icon:'📊', val:`${pct}%`,   label:'Progresso'   },
-          { icon:'⚡', val:todayXp,     label:'XP hoje'      },
+          { icon:'✅', val:done.length,  label:'Feitas hoje' },
+          { icon:'📊', val:`${pct}%`,    label:'Progresso'  },
+          { icon:'⚡', val:todayXp,      label:'XP hoje'    },
+          { icon:'🔥', val:streak,       label:'Sequência'  },
         ].map((s,i) => (
-          <div key={i} style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:14, padding:'14px 12px', textAlign:'center' }}>
-            <div style={{ fontSize:22, marginBottom:4 }}>{s.icon}</div>
-            <div style={{ color:P.txt, fontWeight:800, fontSize:20 }}>{s.val}</div>
-            <div style={{ color:P.muted, fontSize:11, marginTop:2 }}>{s.label}</div>
+          <div key={i} style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:14, padding:'12px 8px', textAlign:'center' }}>
+            <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+            <div style={{ color:P.txt, fontWeight:800, fontSize:18 }}>{s.val}</div>
+            <div style={{ color:P.muted, fontSize:10, marginTop:2 }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* gráfico semanal */}
       <div style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:18, padding:'18px 20px' }}>
-        <div style={{ color:P.txt, fontWeight:700, fontSize:15, marginBottom:16 }}>📅 Progresso semanal</div>
+        <div style={{ color:P.txt, fontWeight:700, fontSize:15, marginBottom:16 }}>📅 XP dos últimos 7 dias</div>
         <div style={{ display:'flex', gap:6, alignItems:'flex-end', height:70 }}>
           {weekData.map((v, i) => (
             <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-              <div style={{ width:'100%', height: v>0 ? `${Math.round(v*0.62)}px` : '3px', background: v>0 ? `linear-gradient(180deg,${P.pri},${P.pri}77)` : P.surface2, borderRadius:'6px 6px 3px 3px', transition:'height .3s' }} />
-              <span style={{ color: i===4 ? P.priL : P.muted, fontSize:11, fontWeight: i===4 ? 700 : 400 }}>{DAYS[i]}</span>
+              <div style={{ width:'100%', height: v.pct>0 ? `${Math.round(v.pct*0.62)}px` : '3px', background: v.pct>0 ? `linear-gradient(180deg,${P.pri},${P.pri}77)` : P.surface2, borderRadius:'6px 6px 3px 3px', transition:'height .3s' }} />
+              <span style={{ color: v.isToday ? P.priL : P.muted, fontSize:11, fontWeight: v.isToday ? 700 : 400 }}>{v.day}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* próxima recompensa */}
       {nextRwd && (
         <div style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:18, padding:16 }}>
-          <div style={{ color:P.muted, fontSize:12, marginBottom:8 }}>🎯 Próxima meta da Sofia</div>
+          <div style={{ color:P.muted, fontSize:12, marginBottom:8 }}>🎯 Próxima meta da Kauanny</div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:30 }}>{nextRwd.icon}</span>
             <div style={{ flex:1 }}>
@@ -377,6 +457,17 @@ function ParentHome({ tasks, done, xp, rewards }) {
           </div>
         </div>
       )}
+
+      <div style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:18, padding:16 }}>
+        <div style={{ color:P.txt, fontWeight:700, fontSize:14, marginBottom:12 }}>✅ Tarefas de hoje</div>
+        {tasks.map(t => (
+          <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <span style={{ fontSize:18 }}>{t.icon}</span>
+            <span style={{ flex:1, color: done.includes(t.id) ? P.muted : P.txt, fontSize:13, textDecoration: done.includes(t.id) ? 'line-through' : 'none' }}>{t.title}</span>
+            {done.includes(t.id) && <span style={{ color:P.ok, fontSize:12, fontWeight:700 }}>✓ +{t.xp}xp</span>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -471,7 +562,7 @@ function ParentRecompensas({ rewards, setRewards }) {
   )
 }
 
-function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, onBack }) {
+function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, history, onLogout }) {
   const [tab, setTab] = useState('home')
   return (
     <div style={{ background:P.bg, minHeight:'100vh', maxWidth:440, margin:'0 auto', position:'relative' }}>
@@ -479,17 +570,16 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, onBack }) {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div>
             <div style={{ color:P.muted, fontSize:12 }}>Painel dos Pais</div>
-            {/* 👆 Troque pelo sobrenome da sua família */}
-            <div style={{ color:P.txt, fontWeight:800, fontSize:20 }}>👨‍👩‍👧 Família Silva</div>
+            <div style={{ color:P.txt, fontWeight:800, fontSize:20 }}>👨‍👩‍👧 Família Moraes</div>
           </div>
           <div style={{ background:P.surface, border:`1px solid ${P.border}`, borderRadius:12, padding:'8px 14px', textAlign:'right' }}>
             <div style={{ color:P.priL, fontWeight:800, fontSize:22 }}>{xp} XP</div>
-            <div style={{ color:P.muted, fontSize:11 }}>Sofia (total)</div>
+            <div style={{ color:P.muted, fontSize:11 }}>Kauanny (total)</div>
           </div>
         </div>
       </div>
 
-      {tab === 'home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} />}
+      {tab === 'home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} history={history} />}
       {tab === 'tarefas'     && <ParentTarefas tasks={tasks} setTasks={setTasks} />}
       {tab === 'recompensas' && <ParentRecompensas rewards={rewards} setRewards={setRewards} />}
 
@@ -502,78 +592,76 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, onBack }) {
           </button>
         ))}
       </div>
-      <button className="btn" onClick={onBack} style={{ position:'fixed', top:14, right:14, background:P.surface2, border:`1px solid ${P.border}`, borderRadius:8, padding:'5px 12px', color:P.muted, fontSize:13 }}>← Sair</button>
+      <button className="btn" onClick={onLogout} style={{ position:'fixed', top:14, right:14, background:P.surface2, border:`1px solid ${P.border}`, borderRadius:8, padding:'5px 12px', color:P.muted, fontSize:13 }}>Sair</button>
     </div>
   )
 }
 
 // ════════════════════════════════════════════════════════════════════
-// TELA INICIAL
-// ════════════════════════════════════════════════════════════════════
-
-function HomeScreen({ onSelect }) {
-  return (
-    <div style={{ background:'#07080F', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:28 }}>
-      <div style={{ textAlign:'center', marginBottom:48 }}>
-        <div style={{ fontSize:62, marginBottom:14 }}>🏠</div>
-        <h1 style={{ color:'#F2F0FF', fontSize:34, fontWeight:800, letterSpacing:'-0.5px', lineHeight:1.1 }}>Missão Família</h1>
-        <p style={{ color:'#6B7280', fontSize:15, marginTop:10 }}>Responsabilidade que vira conquista</p>
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:14, width:'100%', maxWidth:320 }}>
-        <button className="btn card-hover" onClick={() => onSelect('teen')} style={{ background:'linear-gradient(135deg,#7C5CFC,#A688FF)', border:'none', borderRadius:18, padding:'20px 22px', display:'flex', alignItems:'center', gap:16, textAlign:'left' }}>
-          <span style={{ fontSize:38 }}>🎮</span>
-          <div>
-            <div style={{ color:'white', fontWeight:700, fontSize:18 }}>Sou Adolescente</div>
-            <div style={{ color:'rgba(255,255,255,.72)', fontSize:14, marginTop:3 }}>Missões, conquistas e recompensas</div>
-          </div>
-        </button>
-        <button className="btn card-hover" onClick={() => onSelect('parent')} style={{ background:'linear-gradient(135deg,#1E3A6E,#2D4F96)', border:'1px solid #2A4070', borderRadius:18, padding:'20px 22px', display:'flex', alignItems:'center', gap:16, textAlign:'left' }}>
-          <span style={{ fontSize:38 }}>👨‍👩‍👧</span>
-          <div>
-            <div style={{ color:'white', fontWeight:700, fontSize:18 }}>Sou Pai / Mãe</div>
-            <div style={{ color:'rgba(255,255,255,.6)', fontSize:14, marginTop:3 }}>Gerenciar tarefas e acompanhar progresso</div>
-          </div>
-        </button>
-      </div>
-      <p style={{ color:'#374151', fontSize:12, marginTop:32 }}>✨ Demo — Sofia, 15 anos</p>
-    </div>
-  )
-}
-
-// ════════════════════════════════════════════════════════════════════
-// APP PRINCIPAL — estado compartilhado
+// APP PRINCIPAL
 // ════════════════════════════════════════════════════════════════════
 
 export default function App() {
-  const [role,    setRole]    = useState(null)
-  const [tasks,   setTasks]   = useState(TASKS_INIT)
-  const [rewards, setRewards] = useState(REWARDS_INIT)
+  const [user,    setUser]    = useState(undefined) // undefined = verificando auth
+  const [tasks,   setTasksSt] = useState(TASKS_INIT)
+  const [rewards, setRwdSt]   = useState(REWARDS_INIT)
   const [done,    setDone]    = useState([])
-  const [xp,      setXp]      = useState(120)
+  const [xp,      setXp]      = useState(0)
+  const [streak,  setStreak]  = useState(0)
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Carrega e escuta mudanças em tempo real do Firestore
+  // Observa autenticação
   useEffect(() => {
-    const unsub = onSnapshot(DOC_REF, (snap) => {
+    return onAuthStateChanged(auth, u => setUser(u ?? null))
+  }, [])
+
+  // Observa dados do Firestore (apenas se logado)
+  useEffect(() => {
+    if (!user) return
+    const todayDate = getToday()
+
+    const unsub = onSnapshot(DOC_REF, async (snap) => {
       if (snap.exists()) {
         const d = snap.data()
-        if (d.tasks)   setTasks(d.tasks)
-        if (d.rewards) setRewards(d.rewards)
-        if (d.done)    setDone(d.done)
-        if (d.xp != null) setXp(d.xp)
+
+        // Reset diário: se lastReset for diferente de hoje
+        if (d.lastReset && d.lastReset !== todayDate) {
+          const dailyXp  = (d.tasks || []).filter(t => (d.done || []).includes(t.id)).reduce((s,t) => s+t.xp, 0)
+          const hadTasks = (d.done || []).length > 0
+          const newStreak  = hadTasks ? (d.streak || 0) + 1 : 0
+          const newHistory = [...(d.history || []).slice(-13), { date: d.lastReset, xp: dailyXp }]
+          await setDoc(DOC_REF, { done: [], lastReset: todayDate, streak: newStreak, history: newHistory }, { merge: true })
+          return // onSnapshot dispara novamente com dados atualizados
+        }
+
+        if (d.tasks)   setTasksSt(d.tasks)
+        if (d.rewards) setRwdSt(d.rewards)
+        setDone(d.done    || [])
+        setXp(d.xp        ?? 0)
+        setStreak(d.streak || 0)
+        setHistory(d.history || [])
+
+        if (!d.lastReset) {
+          await setDoc(DOC_REF, { lastReset: todayDate }, { merge: true })
+        }
       } else {
-        // Primeira vez: salva os dados iniciais no Firestore
-        setDoc(DOC_REF, { tasks: TASKS_INIT, rewards: REWARDS_INIT, done: [], xp: 120 })
+        // Primeiro acesso: inicializa documento
+        await setDoc(DOC_REF, {
+          tasks: TASKS_INIT, rewards: REWARDS_INIT,
+          done: [], xp: 0, streak: 0, history: [], lastReset: todayDate,
+        })
       }
       setLoading(false)
     })
+
     return () => unsub()
-  }, [])
+  }, [user])
 
   const save = (patch) => setDoc(DOC_REF, patch, { merge: true })
 
   const handleSetTasks = (updater) => {
-    setTasks(prev => {
+    setTasksSt(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       save({ tasks: next })
       return next
@@ -581,7 +669,7 @@ export default function App() {
   }
 
   const handleSetRewards = (updater) => {
-    setRewards(prev => {
+    setRwdSt(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       save({ rewards: next })
       return next
@@ -597,18 +685,32 @@ export default function App() {
     save({ done: newDone, xp: newXp })
   }
 
-  if (loading) return (
+  const handleLogout = () => signOut(auth)
+
+  // Estados de carregamento
+  if (user === undefined) return (
     <div style={{ background:'#07080F', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ color:'#6B7280', fontSize:16 }}>Carregando...</div>
     </div>
   )
 
+  if (!user) return <><style>{CSS}</style><LoginScreen /></>
+
+  if (loading) return (
+    <div style={{ background:'#07080F', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ color:'#6B7280', fontSize:16 }}>Carregando dados...</div>
+    </div>
+  )
+
+  const isParent = user.email === PARENT_EMAIL
+
   return (
     <>
       <style>{CSS}</style>
-      {!role           && <HomeScreen onSelect={setRole} />}
-      {role === 'teen'   && <TeenApp   tasks={tasks} rewards={rewards} done={done} onDone={handleDone} xp={xp} onBack={() => setRole(null)} />}
-      {role === 'parent' && <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards} xp={xp} done={done} onBack={() => setRole(null)} />}
+      {isParent
+        ? <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards} xp={xp} done={done} streak={streak} history={history} onLogout={handleLogout} />
+        : <TeenApp   tasks={tasks} rewards={rewards} done={done} onDone={handleDone} xp={xp} streak={streak} onLogout={handleLogout} />
+      }
     </>
   )
 }
