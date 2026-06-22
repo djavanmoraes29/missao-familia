@@ -7,7 +7,23 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebas
 const DOC_REF      = doc(db, 'familia', 'sofia')
 const PARENT_EMAIL = 'thatiana@mae.com'
 const COMBO_BONUS  = 15
-const AVATARS      = ['😊','🦋','🌸','⭐','🦄','🐱','🐝','🌺','💫','🎀','🦊','🐰','🌙','🍀','💎']
+const AVATARS        = ['😊','🦋','🌸','⭐','🦄','🐱','🐝','🌺','💫','🎀','🦊','🐰','🌙','🍀','💎']
+const PARENT_AVATARS = ['👩','👨','👸','🤴','🌺','💫','🎩','🌸','💎','⭐','🦁','🦋']
+const MOTIVATION_MSGS = [
+  'Arrasou! Continue assim! 🔥',
+  'Isso é responsabilidade de verdade! ⭐',
+  'Mandou bem demais! 💪',
+  'Que orgulho! Você tá crescendo! 🏆',
+  'Que exemplo lindo! 💛',
+  'Disciplina é superpoder! ✨',
+  'Cada passo te aproxima do objetivo! 🚀',
+  'Você é incrível, Kauanny! 🦋',
+  'Isso faz toda a diferença! 💎',
+  'Consistência é tudo! Vai lá! 🔥',
+  'Missão cumprida! 🎯',
+  'Família orgulhosa! ❤️',
+]
+const getFirstName = email => { const n=email.split('@')[0]; return n.charAt(0).toUpperCase()+n.slice(1) }
 
 const TIPOS = [
   { key:'diaria',  label:'Diárias',  icon:'🔥', desc:'Renova todo dia'     },
@@ -76,7 +92,7 @@ const BADGES = [
 const INITIAL_DOC = {
   tasks: TASKS_INIT, rewards: REWARDS_INIT,
   done: [], xp: 0, streak: 0, shields: 0,
-  history: [], profileIcon: '😊', comboBonusToday: false,
+  history: [], profileIcon: '😊', parentIcon: '👩', comboBonusToday: false,
   lastResetDiaria: getToday(), lastResetSemanal: getMonday(), lastResetMensal: getMonth(),
 }
 
@@ -195,13 +211,13 @@ function XpBar({ xp, C }) {
 // ════════════════════════════════════════════════════════════════════
 // TELAS DA FILHA
 // ════════════════════════════════════════════════════════════════════
-function AvatarPicker({ current, onSelect, onClose }) {
+function AvatarPicker({ current, onSelect, onClose, avatarList = AVATARS, title = 'Escolha seu avatar' }) {
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',zIndex:99,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
       <div style={{background:'#1C1A2E',borderRadius:'24px 24px 0 0',padding:'24px 20px 40px',width:'100%',maxWidth:440}}>
-        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:17,marginBottom:20,textAlign:'center'}}>Escolha seu avatar</div>
+        <div style={{color:'#F2F0FF',fontWeight:700,fontSize:17,marginBottom:20,textAlign:'center'}}>{title}</div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:20}}>
-          {AVATARS.map(a=>(
+          {avatarList.map(a=>(
             <button key={a} className="btn" onClick={()=>onSelect(a)}
               style={{fontSize:36,background:a===current?'rgba(124,92,252,.3)':'rgba(255,255,255,.05)',border:`2px solid ${a===current?'#7C5CFC':'transparent'}`,borderRadius:16,padding:'10px',lineHeight:1}}>
               {a}
@@ -221,6 +237,17 @@ function ComboOverlay() {
         <div style={{fontSize:48,marginBottom:6}}>⚡</div>
         <div style={{color:'white',fontWeight:800,fontSize:26,letterSpacing:'-0.5px'}}>COMBO!</div>
         <div style={{color:'rgba(255,255,255,.85)',fontSize:15,marginTop:4}}>+{COMBO_BONUS} XP bônus</div>
+      </div>
+    </div>
+  )
+}
+
+function MotivationToast({ msg }) {
+  return (
+    <div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',zIndex:60,pointerEvents:'none',width:'90%',maxWidth:340}}>
+      <div className="fade-up" style={{background:'linear-gradient(135deg,#1C1A2E,#252340)',border:'1px solid rgba(124,92,252,.4)',borderRadius:16,padding:'14px 20px',display:'flex',alignItems:'center',gap:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}>
+        <span style={{fontSize:28}}>💬</span>
+        <span style={{color:'#F2F0FF',fontWeight:600,fontSize:14,lineHeight:1.4}}>{msg}</span>
       </div>
     </div>
   )
@@ -280,7 +307,7 @@ function TaskGroup({ tipo, tasks, done, onToggle }) {
   )
 }
 
-function TeenMissoes({ tasks, done, onToggle, showCombo }) {
+function TeenMissoes({ tasks, done, onToggle, showCombo, motivationMsg }) {
   const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
   const todayXp    = dailyTasks.filter(t=>done.includes(t.id)).reduce((s,t)=>s+t.xp,0)
   const totalDayXp = dailyTasks.reduce((s,t)=>s+t.xp,0)
@@ -289,6 +316,7 @@ function TeenMissoes({ tasks, done, onToggle, showCombo }) {
   return (
     <div style={{padding:'16px 16px 100px',position:'relative'}}>
       {showCombo && <ComboOverlay />}
+      {motivationMsg && <MotivationToast msg={motivationMsg} />}
 
       {/* progresso das diárias */}
       <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:16,padding:16,marginBottom:20}}>
@@ -412,7 +440,7 @@ function TeenTrofeus({ xp, streak, shields }) {
   )
 }
 
-function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, profileIcon, onProfileIcon, onBuyShield, onLogout }) {
+function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, motivationMsg, profileIcon, onProfileIcon, onBuyShield, onLogout }) {
   const [tab, setTab]       = useState('missoes')
   const [showAv, setShowAv] = useState(false)
 
@@ -444,7 +472,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
         <XpBar xp={xp} C={T} />
       </div>
 
-      {tab==='missoes' && <TeenMissoes tasks={tasks} done={done} onToggle={onToggle} showCombo={showCombo} />}
+      {tab==='missoes' && <TeenMissoes tasks={tasks} done={done} onToggle={onToggle} showCombo={showCombo} motivationMsg={motivationMsg} />}
       {tab==='loja'    && <TeenLoja rewards={rewards} xp={xp} shields={shields} onBuyShield={onBuyShield} />}
       {tab==='trofeus' && <TeenTrofeus xp={xp} streak={streak} shields={shields} />}
 
@@ -465,7 +493,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
 // ════════════════════════════════════════════════════════════════════
 // TELAS DOS PAIS
 // ════════════════════════════════════════════════════════════════════
-function ParentHome({ tasks, done, xp, rewards, streak, shields, history }) {
+function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profileIcon, onUndoTask }) {
   const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
   const todayXp    = tasks.filter(t=>done.includes(t.id)).reduce((s,t)=>s+t.xp,0)
   const pct        = tasks.length ? Math.round((done.length/tasks.length)*100) : 0
@@ -489,7 +517,7 @@ function ParentHome({ tasks, done, xp, rewards, streak, shields, history }) {
       {/* card Kauanny */}
       <div style={{background:`linear-gradient(135deg,${P.pri}1A,${P.acc}0D)`,border:`1px solid ${P.pri}40`,borderRadius:18,padding:20}}>
         <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
-          <div style={{width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${P.pri},#6366F1)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>😊</div>
+          <div style={{width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${P.pri},#6366F1)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:26}}>{profileIcon||'😊'}</div>
           <div style={{flex:1}}>
             <div style={{color:P.txt,fontWeight:700,fontSize:18}}>Kauanny</div>
             <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
@@ -557,22 +585,33 @@ function ParentHome({ tasks, done, xp, rewards, streak, shields, history }) {
         </div>
       )}
 
-      {/* tarefas por categoria */}
+      {/* tarefas por categoria com botão de cancelar */}
       <div style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:18,padding:16}}>
-        <div style={{color:P.txt,fontWeight:700,fontSize:14,marginBottom:12}}>Tarefas de hoje</div>
+        <div style={{color:P.txt,fontWeight:700,fontSize:14,marginBottom:4}}>Tarefas marcadas pela Kauanny</div>
+        <div style={{color:P.muted,fontSize:12,marginBottom:12}}>Toque em ✕ para cancelar caso não tenha sido feita</div>
         {TIPOS.map(tipo=>{
           const tks = tasks.filter(t=>t.tipo===tipo.key)
           if (tks.length===0) return null
           return (
             <div key={tipo.key} style={{marginBottom:12}}>
               <div style={{color:P.muted,fontSize:12,fontWeight:600,marginBottom:6}}>{tipo.icon} {tipo.label}</div>
-              {tks.map(t=>(
-                <div key={t.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                  <span style={{fontSize:16}}>{t.icon}</span>
-                  <span style={{flex:1,color:done.includes(t.id)?P.muted:P.txt,fontSize:13,textDecoration:done.includes(t.id)?'line-through':'none'}}>{t.title}</span>
-                  {done.includes(t.id)&&<span style={{color:P.ok,fontSize:12,fontWeight:700}}>✓ +{t.xp}xp</span>}
-                </div>
-              ))}
+              {tks.map(t=>{
+                const isDone = done.includes(t.id)
+                return (
+                  <div key={t.id} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,padding:'6px 8px',borderRadius:10,background:isDone?'rgba(34,197,94,.06)':'transparent'}}>
+                    <span style={{fontSize:16}}>{t.icon}</span>
+                    <span style={{flex:1,color:isDone?P.ok:P.muted,fontSize:13,fontWeight:isDone?600:400,textDecoration:isDone?'none':'none'}}>{t.title}</span>
+                    {isDone
+                      ? <>
+                          <span style={{color:P.ok,fontSize:12,fontWeight:700}}>✓ +{t.xp}xp</span>
+                          <button className="btn" onClick={()=>onUndoTask(t)}
+                            style={{background:'rgba(255,77,109,.12)',border:'1px solid rgba(255,77,109,.25)',borderRadius:7,padding:'3px 8px',color:'#FF4D6D',fontSize:12,fontWeight:700,lineHeight:1}}>✕</button>
+                        </>
+                      : <span style={{color:P.surface2,fontSize:12}}>pendente</span>
+                    }
+                  </div>
+                )
+              })}
             </div>
           )
         })}
@@ -777,15 +816,23 @@ function ParentConfig({ onResetDay, onResetAll }) {
   )
 }
 
-function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, onResetDay, onResetAll, onLogout }) {
-  const [tab, setTab] = useState('home')
+function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, profileIcon, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
+  const [tab,    setTab]    = useState('home')
+  const [showAv, setShowAv] = useState(false)
   return (
     <div style={{background:P.bg,minHeight:'100vh',maxWidth:440,margin:'0 auto',position:'relative'}}>
+      {showAv && <AvatarPicker current={parentIcon} avatarList={PARENT_AVATARS} title="Seu avatar" onSelect={v=>{onParentIcon(v);setShowAv(false)}} onClose={()=>setShowAv(false)} />}
       <div style={{background:`linear-gradient(180deg,#0D1B38 0%,${P.bg} 100%)`,padding:'20px 20px 16px',borderBottom:`1px solid ${P.border}`}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <div style={{color:P.muted,fontSize:12}}>Painel dos Pais</div>
-            <div style={{color:P.txt,fontWeight:800,fontSize:20}}>👨‍👩‍👧 Família Moraes</div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <button className="btn" onClick={()=>setShowAv(true)}
+              style={{width:46,height:46,borderRadius:'50%',background:`linear-gradient(135deg,${P.pri},#6366F1)`,border:'none',fontSize:24,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              {parentIcon||'👩'}
+            </button>
+            <div>
+              <div style={{color:P.muted,fontSize:12}}>Bem-vinda,</div>
+              <div style={{color:P.txt,fontWeight:800,fontSize:19}}>{userName}</div>
+            </div>
           </div>
           <div style={{background:`linear-gradient(135deg,${P.pri},#6366F1)`,borderRadius:14,padding:'10px 16px',textAlign:'right'}}>
             <div style={{color:'white',fontWeight:800,fontSize:26,lineHeight:1}}>{xp}</div>
@@ -794,7 +841,7 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shi
         </div>
       </div>
 
-      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} shields={shields} history={history} />}
+      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} shields={shields} history={history} profileIcon={profileIcon} onUndoTask={onUndoTask} />}
       {tab==='tarefas'     && <ParentTarefas tasks={tasks} setTasks={setTasks} />}
       {tab==='recompensas' && <ParentRecompensas rewards={rewards} setRewards={setRewards} />}
       {tab==='config'      && <ParentConfig onResetDay={onResetDay} onResetAll={onResetAll} />}
@@ -826,8 +873,10 @@ export default function App() {
   const [shields,        setShields]       = useState(0)
   const [history,        setHistory]       = useState([])
   const [profileIcon,    setProfileIconSt] = useState('😊')
+  const [parentIcon,     setParentIconSt]  = useState('👩')
   const [comboBonusToday,setComboBT]       = useState(false)
   const [showCombo,      setShowCombo]     = useState(false)
+  const [motivationMsg,  setMotivation]    = useState('')
   const [loading,        setLoading]       = useState(true)
 
   useEffect(() => onAuthStateChanged(auth, u => setUser(u??null)), [])
@@ -896,6 +945,7 @@ export default function App() {
         setShields(d.shields||0)
         setHistory(d.history||[])
         setProfileIconSt(d.profileIcon||'😊')
+        setParentIconSt(d.parentIcon||'👩')
         setComboBT(d.comboBonusToday||false)
       } else {
         await setDoc(DOC_REF, INITIAL_DOC)
@@ -914,10 +964,19 @@ export default function App() {
     setRwdSt(prev => { const next=typeof updater==='function'?updater(prev):updater; save({rewards:next}); return next })
   }
 
+  const showMotivation = () => {
+    const msg = MOTIVATION_MSGS[Math.floor(Math.random()*MOTIVATION_MSGS.length)]
+    setMotivation(msg)
+    setTimeout(()=>setMotivation(''), 2500)
+  }
+
   const handleToggle = task => {
     const isDone   = done.includes(task.id)
     const newDone  = isDone ? done.filter(id=>id!==task.id) : [...done, task.id]
     let   newXp    = isDone ? Math.max(0,xp-task.xp) : xp+task.xp
+
+    // Mensagem de incentivo ao marcar
+    if (!isDone) showMotivation()
 
     // Verifica combo bônus (só diárias)
     let newCombo = comboBonusToday
@@ -945,7 +1004,15 @@ export default function App() {
   }
 
   const handleProfileIcon = icon => { setProfileIconSt(icon); save({profileIcon:icon}) }
+  const handleParentIcon  = icon => { setParentIconSt(icon); save({parentIcon:icon}) }
   const handleLogout      = ()   => signOut(auth)
+
+  const handleUndoTask = task => {
+    const newDone = done.filter(id=>id!==task.id)
+    const newXp   = Math.max(0, xp - task.xp)
+    setDone(newDone); setXp(newXp)
+    save({done:newDone, xp:newXp})
+  }
 
   const handleResetDay = async () => {
     const dailyIds = tasks.filter(t=>t.tipo==='diaria').map(t=>t.id)
@@ -977,9 +1044,11 @@ export default function App() {
       {isParent
         ? <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards}
             xp={xp} done={done} streak={streak} shields={shields} history={history}
-            onResetDay={handleResetDay} onResetAll={handleResetAll} onLogout={handleLogout} />
+            profileIcon={profileIcon} parentIcon={parentIcon} onParentIcon={handleParentIcon}
+            onResetDay={handleResetDay} onResetAll={handleResetAll} onUndoTask={handleUndoTask}
+            onLogout={handleLogout} userName={getFirstName(user.email)} />
         : <TeenApp tasks={tasks} rewards={rewards} done={done} onToggle={handleToggle}
-            xp={xp} streak={streak} shields={shields} showCombo={showCombo}
+            xp={xp} streak={streak} shields={shields} showCombo={showCombo} motivationMsg={motivationMsg}
             profileIcon={profileIcon} onProfileIcon={handleProfileIcon}
             onBuyShield={handleBuyShield} onLogout={handleLogout} />
       }
