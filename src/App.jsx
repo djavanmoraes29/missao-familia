@@ -103,11 +103,10 @@ const CSS = `
 // LOGIN
 // ════════════════════════════════════════════════════════════════════
 function LoginScreen() {
-  const [email,pw,setE,setPw,err,setErr,load,setLoad] = [useState(''),useState(''),useState,useState,useState(''),useState,useState(false),useState]
-  const [emailV, setEmailV]   = useState('')
-  const [pwV,    setPwV]      = useState('')
-  const [errV,   setErrV]     = useState('')
-  const [loadV,  setLoadV]    = useState(false)
+  const [emailV, setEmailV] = useState('')
+  const [pwV,    setPwV]    = useState('')
+  const [errV,   setErrV]   = useState('')
+  const [loadV,  setLoadV]  = useState(false)
 
   const handle = async () => {
     if (!emailV||!pwV) return
@@ -775,13 +774,22 @@ export default function App() {
 
   const handleLogout = () => signOut(auth)
 
-  if (user===undefined||loading) return (
+  // Verificando auth state inicial
+  if (user === undefined) return (
     <div style={{background:'#07080F',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{color:'#6B7280',fontSize:16}}>Carregando...</div>
     </div>
   )
 
+  // Não logado → tela de login
   if (!user) return <><style>{CSS}</style><LoginScreen /></>
+
+  // Logado mas aguardando dados do Firestore
+  if (loading) return (
+    <div style={{background:'#07080F',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{color:'#6B7280',fontSize:16}}>Carregando dados...</div>
+    </div>
+  )
 
   const isParent = user.email===PARENT_EMAIL
 
