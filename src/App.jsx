@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebas
 const DOC_REF      = doc(db, 'familia', 'sofia')
 const PARENT_EMAIL = 'thatiana@mae.com'
 const COMBO_BONUS  = 15
+const DOC_VERSION  = 3   // incrementar aqui para forçar atualização de tarefas/recompensas
 const AVATARS        = ['😊','🦋','🌸','⭐','🦄','🐱','🐝','🌺','💫','🎀','🦊','🐰','🌙','🍀','💎']
 const PARENT_AVATARS = ['👩','👨','👸','🤴','🌺','💫','🎩','🌸','💎','⭐','🦁','🦋']
 const MOTIVATION_MSGS = [
@@ -90,7 +91,7 @@ const BADGES = [
 ]
 
 const INITIAL_DOC = {
-  tasks: TASKS_INIT, rewards: REWARDS_INIT,
+  tasks: TASKS_INIT, rewards: REWARDS_INIT, version: DOC_VERSION,
   done: [], xp: 0, streak: 0, shields: 0,
   history: [], profileIcon: '😊', profilePhoto: null, parentIcon: '👩', comboBonusToday: false,
   lastResetDiaria: getToday(), lastResetSemanal: getMonday(), lastResetMensal: getMonth(),
@@ -959,6 +960,13 @@ export default function App() {
     const unsub = onSnapshot(DOC_REF, async snap => {
       if (snap.exists()) {
         const d = snap.data()
+
+        // Migração de versão: atualiza tarefas e recompensas se estiverem desatualizadas
+        if (!d.version || d.version < DOC_VERSION) {
+          await setDoc(DOC_REF, { tasks: TASKS_INIT, rewards: REWARDS_INIT, version: DOC_VERSION }, { merge: true })
+          return
+        }
+
         let updates = {}, newDone = [...(d.done||[])]
         let needsUpdate = false
 
@@ -1094,6 +1102,7 @@ export default function App() {
     await setDoc(DOC_REF, {
       done:[], xp:0, streak:0, shields:0, history:[], comboBonusToday:false,
       lastResetDiaria:getToday(), lastResetSemanal:getMonday(), lastResetMensal:getMonth(),
+      tasks:TASKS_INIT, rewards:REWARDS_INIT, version:DOC_VERSION,
     }, {merge:true})
   }
 
