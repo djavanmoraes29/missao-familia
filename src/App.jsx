@@ -697,7 +697,7 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, his
 // APP PRINCIPAL
 // ════════════════════════════════════════════════════════════════════
 export default function App() {
-  const [user,        setUser]        = useState(undefined)
+  const [user,        setUser]        = useState(null)
   const [tasks,       setTasksSt]     = useState(TASKS_INIT)
   const [rewards,     setRwdSt]       = useState(REWARDS_INIT)
   const [done,        setDone]        = useState([])
@@ -774,14 +774,7 @@ export default function App() {
 
   const handleLogout = () => signOut(auth)
 
-  // Verificando auth state inicial
-  if (user === undefined) return (
-    <div style={{background:'#07080F',minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <div style={{color:'#6B7280',fontSize:16}}>Carregando...</div>
-    </div>
-  )
-
-  // Não logado → tela de login
+  // Não logado → tela de login imediatamente
   if (!user) return <><style>{CSS}</style><LoginScreen /></>
 
   // Logado mas aguardando dados do Firestore
