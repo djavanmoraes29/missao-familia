@@ -986,11 +986,65 @@ function ParentConfig({ onResetDay, onResetAll }) {
   )
 }
 
+// ─── Tutorial dos Pais ───────────────────────────────────────────────
+const PARENT_TUTORIAL_STEPS = [
+  { icon:'👨‍👩‍👧', title:'Painel dos Pais',            desc:'Aqui você acompanha tudo: o progresso da Kauanny, gerencia as tarefas, define recompensas e monitora a sequência de dias.' },
+  { icon:'📊',  title:'Visão Geral',                desc:'Veja o XP acumulado, sequência ativa, escudos disponíveis e o gráfico dos últimos 7 dias. Barras vermelhas indicam dias sem nenhuma tarefa concluída.' },
+  { icon:'✅',  title:'Gerenciar Tarefas',          desc:'Cadastre tarefas em 3 categorias: Diárias (renovam todo dia), Semanais (renovam toda segunda) e Mensais (renovam no dia 1). Defina o XP de cada uma.' },
+  { icon:'🎁',  title:'Recompensas',               desc:'Crie recompensas com custo em XP. Quando a Kauanny acumular XP suficiente, ela pode resgatar na loja. O Escudo de Sequência é especial: protege 1 dia de falta.' },
+  { icon:'✕',   title:'Cancelar Tarefa Marcada',   desc:'Na Visão Geral, você vê todas as tarefas marcadas pela Kauanny. Se ela marcou algo sem ter feito, toque no botão ✕ vermelho para cancelar e descontar o XP.' },
+  { icon:'🔥',  title:'Sequência de Dias',         desc:'A sequência aumenta a cada dia que a Kauanny conclui ao menos 1 tarefa diária. Se não fizer nada em um dia, volta a zero — a não ser que ela tenha um Escudo de Sequência.' },
+  { icon:'⚙️',  title:'Configurações',             desc:'"Zerar dia atual" desmarca as tarefas de hoje sem mexer no XP. "Zerar tudo" reseta XP, sequência e histórico, mas mantém as tarefas e recompensas cadastradas.' },
+  { icon:'🎯',  title:'Dica de Ouro',              desc:'Combine as recompensas com a Kauanny antes de cadastrar — ela vai se dedicar muito mais quando sabe exatamente pelo que está trabalhando!' },
+]
+
+function ParentTutorial({ onClose }) {
+  const [step, setStep] = useState(0)
+  const s = PARENT_TUTORIAL_STEPS[step]
+  const isLast = step === PARENT_TUTORIAL_STEPS.length - 1
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.92)',zIndex:200,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:28}}>
+      <div style={{display:'flex',gap:6,marginBottom:32}}>
+        {PARENT_TUTORIAL_STEPS.map((_,i)=>(
+          <div key={i} style={{width:i===step?24:6,height:6,borderRadius:99,background:i===step?P.pri:P.border,transition:'width .3s'}} />
+        ))}
+      </div>
+      <div className="fade-up" key={step} style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:24,padding:'36px 28px',maxWidth:340,width:'100%',textAlign:'center'}}>
+        <div style={{fontSize:56,marginBottom:16}}>{s.icon}</div>
+        <div style={{color:P.txt,fontWeight:800,fontSize:20,marginBottom:12,letterSpacing:'-0.3px'}}>{s.title}</div>
+        <div style={{color:P.muted,fontSize:15,lineHeight:1.7}}>{s.desc}</div>
+      </div>
+      <div style={{display:'flex',gap:12,marginTop:28,width:'100%',maxWidth:340}}>
+        {step > 0 && (
+          <button className="btn" onClick={()=>setStep(s=>s-1)}
+            style={{flex:1,background:P.surface,border:`1px solid ${P.border}`,borderRadius:14,padding:'14px',color:P.muted,fontWeight:600,fontSize:15}}>
+            Voltar
+          </button>
+        )}
+        <button className="btn" onClick={isLast ? onClose : ()=>setStep(s=>s+1)}
+          style={{flex:2,background:`linear-gradient(135deg,${P.pri},#6366F1)`,border:'none',borderRadius:14,padding:'14px',color:'white',fontWeight:700,fontSize:15}}>
+          {isLast ? 'Entendido! ✓' : 'Próximo →'}
+        </button>
+      </div>
+      {!isLast && (
+        <button className="btn" onClick={onClose} style={{marginTop:16,background:'none',border:'none',color:P.muted,fontSize:13,cursor:'pointer'}}>
+          Pular tutorial
+        </button>
+      )}
+    </div>
+  )
+}
+
 function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, profileIcon, profilePhoto, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
-  const [tab,    setTab]    = useState('home')
-  const [showAv, setShowAv] = useState(false)
+  const [tab,         setTab]         = useState('home')
+  const [showAv,      setShowAv]      = useState(false)
+  const [showTutorial,setShowTutorial]= useState(()=>!localStorage.getItem('mf_parent_tutorial_done'))
+
+  const closeTutorial = () => { localStorage.setItem('mf_parent_tutorial_done','1'); setShowTutorial(false) }
+
   return (
     <div style={{background:P.bg,minHeight:'100vh',maxWidth:440,margin:'0 auto',position:'relative'}}>
+      {showTutorial && <ParentTutorial onClose={closeTutorial} />}
       {showAv && <AvatarPicker current={parentIcon} avatarList={PARENT_AVATARS} title="Seu avatar" onSelect={v=>{onParentIcon(v);setShowAv(false)}} onClose={()=>setShowAv(false)} />}
       <div style={{background:`linear-gradient(180deg,#0D1B38 0%,${P.bg} 100%)`,padding:'20px 20px 16px',borderBottom:`1px solid ${P.border}`}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -1004,9 +1058,13 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shi
               <div style={{color:P.txt,fontWeight:800,fontSize:19}}>{userName}</div>
             </div>
           </div>
-          <div style={{background:`linear-gradient(135deg,${P.pri},#6366F1)`,borderRadius:14,padding:'10px 16px',textAlign:'right'}}>
-            <div style={{color:'white',fontWeight:800,fontSize:26,lineHeight:1}}>{xp}</div>
-            <div style={{color:'rgba(255,255,255,.75)',fontSize:11}}>XP da Kauanny</div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <button className="btn" onClick={()=>setShowTutorial(true)}
+              style={{width:32,height:32,borderRadius:'50%',background:P.surface2,border:`1px solid ${P.border}`,color:P.muted,fontSize:15,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>?</button>
+            <div style={{background:`linear-gradient(135deg,${P.pri},#6366F1)`,borderRadius:14,padding:'10px 16px',textAlign:'right'}}>
+              <div style={{color:'white',fontWeight:800,fontSize:26,lineHeight:1}}>{xp}</div>
+              <div style={{color:'rgba(255,255,255,.75)',fontSize:11}}>XP da Kauanny</div>
+            </div>
           </div>
         </div>
       </div>
