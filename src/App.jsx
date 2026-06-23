@@ -500,12 +500,93 @@ function TeenTrofeus({ xp, streak, shields }) {
   )
 }
 
+// ─── Tutorial ────────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  { icon:'🏠', title:'Bem-vinda ao Missão Família!',   desc:'Aqui você transforma responsabilidades em conquistas. Cada tarefa feita vira XP e XP vira recompensas reais!' },
+  { icon:'🔥', title:'Tarefas Diárias',                desc:'Se renovam todo dia. Complete todas e ganhe o bônus COMBO (+15 XP). Se faltar um dia, sua sequência quebra!' },
+  { icon:'📅', title:'Tarefas Semanais',               desc:'Se renovam toda segunda-feira. Valem mais XP porque exigem consistência durante a semana.' },
+  { icon:'🗓️', title:'Tarefas Mensais',               desc:'Se renovam no dia 1 de cada mês. São as maiores conquistas — notas, leitura, objetivos pessoais.' },
+  { icon:'⭐', title:'XP e Níveis',                    desc:'Cada tarefa concluída dá XP. Acumule para subir de Aprendiz até Líder e mostrar seu progresso na aba Troféus.' },
+  { icon:'🛒', title:'Loja de Recompensas',            desc:'Troque seus XP por recompensas combinadas com seus pais. Quanto mais XP acumulado, maior a recompensa disponível!' },
+  { icon:'🔥', title:'Sequência de Dias',              desc:'Mantenha a sequência completando pelo menos 1 tarefa diária por dia. Compre o Escudo de Sequência na loja para proteger um dia de falta.' },
+  { icon:'🎯', title:'Pronta para começar?',           desc:'Complete suas tarefas, mantenha a sequência e conquiste suas recompensas. A família está torcendo por você!' },
+]
+
+function Tutorial({ onClose }) {
+  const [step, setStep] = useState(0)
+  const s = TUTORIAL_STEPS[step]
+  const isLast = step === TUTORIAL_STEPS.length - 1
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.92)',zIndex:200,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:28}}>
+      {/* indicador de passos */}
+      <div style={{display:'flex',gap:6,marginBottom:32}}>
+        {TUTORIAL_STEPS.map((_,i)=>(
+          <div key={i} style={{width:i===step?24:6,height:6,borderRadius:99,background:i===step?T.pri:T.border,transition:'width .3s'}} />
+        ))}
+      </div>
+      {/* card */}
+      <div className="fade-up" key={step} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:24,padding:'36px 28px',maxWidth:340,width:'100%',textAlign:'center'}}>
+        <div style={{fontSize:60,marginBottom:16}}>{s.icon}</div>
+        <div style={{color:T.txt,fontWeight:800,fontSize:20,marginBottom:12,letterSpacing:'-0.3px'}}>{s.title}</div>
+        <div style={{color:T.muted,fontSize:15,lineHeight:1.7}}>{s.desc}</div>
+      </div>
+      {/* botões */}
+      <div style={{display:'flex',gap:12,marginTop:28,width:'100%',maxWidth:340}}>
+        {step > 0 && (
+          <button className="btn" onClick={()=>setStep(s=>s-1)}
+            style={{flex:1,background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:'14px',color:T.muted,fontWeight:600,fontSize:15}}>
+            Voltar
+          </button>
+        )}
+        <button className="btn" onClick={isLast ? onClose : ()=>setStep(s=>s+1)}
+          style={{flex:2,background:`linear-gradient(135deg,${T.pri},${T.acc})`,border:'none',borderRadius:14,padding:'14px',color:'white',fontWeight:700,fontSize:15}}>
+          {isLast ? 'Começar! 🚀' : 'Próximo →'}
+        </button>
+      </div>
+      {!isLast && (
+        <button className="btn" onClick={onClose} style={{marginTop:16,background:'none',border:'none',color:T.muted,fontSize:13,cursor:'pointer'}}>
+          Pular tutorial
+        </button>
+      )}
+    </div>
+  )
+}
+
+function NotifDot({ count }) {
+  if (!count) return null
+  return (
+    <div style={{position:'absolute',top:-2,right:-2,background:'#FF4D6D',borderRadius:99,minWidth:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'white',padding:'0 4px',border:'2px solid #0C0B16'}}>
+      {count > 9 ? '9+' : count}
+    </div>
+  )
+}
+
 function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, motivationMsg, onCloseMotivation, profileIcon, profilePhoto, onProfileIcon, onProfilePhoto, onBuyShield, onLogout }) {
-  const [tab, setTab]       = useState('missoes')
-  const [showAv, setShowAv] = useState(false)
+  const [tab,        setTab]        = useState('missoes')
+  const [showAv,     setShowAv]     = useState(false)
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('mf_tutorial_done'))
+  const [notifTrofeu,  setNotifTrofeu]  = useState(false)
+  const [seenLevel,    setSeenLevel]    = useState(() => getLvl(xp).n)
+
+  // detecta subida de nível
+  useEffect(() => {
+    const currentLvl = getLvl(xp).n
+    if (currentLvl > seenLevel) { setNotifTrofeu(true); setSeenLevel(currentLvl) }
+  }, [xp])
+
+  const closeTutorial = () => { localStorage.setItem('mf_tutorial_done','1'); setShowTutorial(false) }
+
+  const handleTab = id => {
+    setTab(id)
+    if (id === 'trofeus') setNotifTrofeu(false)
+  }
+
+  // recompensas acessíveis (excluindo escudo)
+  const lojaNotif = rewards.filter(r => !r.shield && xp >= r.cost).length
 
   return (
     <div style={{background:T.bg,minHeight:'100vh',maxWidth:440,margin:'0 auto',position:'relative'}}>
+      {showTutorial && <Tutorial onClose={closeTutorial} />}
       {showAv && <AvatarPicker current={profileIcon} avatarList={AVATARS} title="Seu avatar"
         onSelect={v=>{onProfileIcon(v);onProfilePhoto(null)}}
         onPhoto={onProfilePhoto}
@@ -529,9 +610,13 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
               </div>
             </div>
           </div>
-          <div style={{background:`linear-gradient(135deg,${T.pri}33,${T.acc}22)`,border:`1px solid ${T.pri}55`,borderRadius:14,padding:'8px 14px',textAlign:'right'}}>
-            <div style={{color:T.priL,fontWeight:800,fontSize:28,lineHeight:1}}>{xp}</div>
-            <div style={{color:T.muted,fontSize:11}}>pontos totais</div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <button className="btn" onClick={()=>setShowTutorial(true)}
+              style={{width:32,height:32,borderRadius:'50%',background:T.surface2,border:`1px solid ${T.border}`,color:T.muted,fontSize:15,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center'}}>?</button>
+            <div style={{background:`linear-gradient(135deg,${T.pri}33,${T.acc}22)`,border:`1px solid ${T.pri}55`,borderRadius:14,padding:'8px 14px',textAlign:'right'}}>
+              <div style={{color:T.priL,fontWeight:800,fontSize:28,lineHeight:1}}>{xp}</div>
+              <div style={{color:T.muted,fontSize:11}}>pontos totais</div>
+            </div>
           </div>
         </div>
         <XpBar xp={xp} C={T} />
@@ -542,9 +627,12 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
       {tab==='trofeus' && <TeenTrofeus xp={xp} streak={streak} shields={shields} />}
 
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:440,background:T.surface,borderTop:`1px solid ${T.border}`,display:'flex',padding:'8px 0 16px'}}>
-        {[['missoes','⚡','Missões'],['loja','🛒','Loja'],['trofeus','🏆','Troféus']].map(([id,ic,label])=>(
-          <button key={id} className="btn" onClick={()=>setTab(id)} style={{flex:1,background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'6px 0'}}>
-            <span style={{fontSize:22}}>{ic}</span>
+        {[['missoes','⚡','Missões',0],['loja','🛒','Loja',lojaNotif],['trofeus','🏆','Troféus',notifTrofeu?1:0]].map(([id,ic,label,notif])=>(
+          <button key={id} className="btn" onClick={()=>handleTab(id)} style={{flex:1,background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'6px 0',position:'relative'}}>
+            <div style={{position:'relative',display:'inline-flex'}}>
+              <span style={{fontSize:22}}>{ic}</span>
+              <NotifDot count={notif} />
+            </div>
             <span style={{fontSize:11,fontWeight:tab===id?700:500,color:tab===id?T.pri:T.muted}}>{label}</span>
             {tab===id&&<div style={{width:18,height:3,background:T.pri,borderRadius:99,marginTop:2}} />}
           </button>
