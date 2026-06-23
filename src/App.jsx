@@ -1285,11 +1285,12 @@ export default function App() {
   }
 
   const handleResetAll = async () => {
+    // Zera apenas progresso (XP, sequência, escudos, histórico, marcações).
+    // NUNCA toca em tasks/rewards: as personalizações dos pais são preservadas.
     setDone([]); setXp(0); setStreak(0); setShields(0); setHistory([]); setComboBT(false)
     await setDoc(DOC_REF, {
       done:[], xp:0, streak:0, shields:0, history:[], comboBonusToday:false,
       lastResetDiaria:getToday(), lastResetSemanal:getMonday(), lastResetMensal:getMonth(),
-      tasks:TASKS_INIT, rewards:REWARDS_INIT, version:DOC_VERSION,
     }, {merge:true})
   }
 
