@@ -120,7 +120,7 @@ const BADGES = [
 
 const INITIAL_DOC = {
   tasks: TASKS_INIT, rewards: REWARDS_INIT, version: DOC_VERSION,
-  done: [], xp: 0, streak: 0, shields: 0,
+  done: [], xp: 0, coins: 0, streak: 0, shields: 0, redemptions: [],
   history: [], profileIcon: '😊', profilePhoto: null, parentIcon: '👩', comboBonusToday: false,
   lastResetDiaria: getToday(), lastResetSemanal: getMonday(), lastResetMensal: getMonth(),
 }
@@ -426,53 +426,74 @@ function TeenMissoes({ tasks, done, onToggle, showCombo, motivationMsg, onCloseM
   )
 }
 
-function TeenLoja({ rewards, xp, shields, onBuyShield }) {
-  const [claimed, setClaimed] = useState([])
+function TeenLoja({ rewards, coins, shields, redemptions, onRedeem, onBuyShield }) {
+  const [confirmR, setConfirmR] = useState(null)
+
+  const pendentes = (redemptions||[]).filter(r=>r.status==='pendente')
 
   const handleClick = r => {
-    if (xp < r.cost) return
+    if (coins < r.cost) return
     if (r.shield) { onBuyShield(r.cost); return }
-    if (!claimed.includes(r.id)) setClaimed(p=>[...p,r.id])
+    setConfirmR(r)
   }
+  const confirmRedeem = () => { onRedeem(confirmR); setConfirmR(null) }
 
   return (
     <div style={{padding:'16px 16px 100px'}}>
-      {/* XP destaque */}
+      {confirmR && (
+        <Confirm
+          title="Resgatar recompensa?"
+          msg={`${confirmR.icon} ${confirmR.title}\nVai custar ${confirmR.cost} moedas. Seus pais serão avisados para entregar.`}
+          yesLabel="Resgatar 🎁" noLabel="Ainda não"
+          onYes={confirmRedeem} onNo={()=>setConfirmR(null)} />
+      )}
+
+      {/* Moedas destaque */}
       <div className="pulse" style={{background:`linear-gradient(135deg,${T.pri},${T.acc})`,borderRadius:20,padding:'20px 24px',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div>
-          <div style={{color:'rgba(255,255,255,.8)',fontSize:13,fontWeight:600}}>Seus pontos</div>
-          <div style={{color:'white',fontWeight:800,fontSize:42,lineHeight:1}}>{xp}</div>
-          <div style={{color:'rgba(255,255,255,.7)',fontSize:13}}>XP acumulados</div>
+          <div style={{color:'rgba(255,255,255,.8)',fontSize:13,fontWeight:600}}>Suas moedas</div>
+          <div style={{color:'white',fontWeight:800,fontSize:42,lineHeight:1}}>{coins}</div>
+          <div style={{color:'rgba(255,255,255,.7)',fontSize:13}}>para gastar na loja</div>
         </div>
-        <div style={{fontSize:52}}>💎</div>
+        <div style={{fontSize:52}}>🪙</div>
       </div>
 
       {/* escudos ativos */}
       {shields>0 && (
-        <div style={{background:'rgba(0,214,143,.1)',border:'1px solid rgba(0,214,143,.3)',borderRadius:14,padding:'12px 16px',marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
+        <div style={{background:'rgba(0,214,143,.1)',border:'1px solid rgba(0,214,143,.3)',borderRadius:14,padding:'12px 16px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
           <span style={{fontSize:24}}>🛡️</span>
-          <span style={{color:'#00D68F',fontWeight:600,fontSize:14}}>{shields} escudo{shields>1?'s':''} de sequência ativo{shields>1?'s':''}</span>
+          <span style={{color:'#00D68F',fontWeight:600,fontSize:14}}>{shields} escudo{shields>1?'s':''} de sequência</span>
+        </div>
+      )}
+
+      {/* pedidos aguardando entrega */}
+      {pendentes.length>0 && (
+        <div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.3)',borderRadius:14,padding:'12px 16px',marginBottom:16}}>
+          <div style={{color:'#F59E0B',fontWeight:700,fontSize:13,marginBottom:8}}>⏳ Aguardando entrega ({pendentes.length})</div>
+          {pendentes.map(p=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:T.txt,padding:'3px 0'}}>
+              <span>{p.icon}</span><span style={{flex:1}}>{p.title}</span><span style={{color:T.muted}}>{p.cost} 🪙</span>
+            </div>
+          ))}
         </div>
       )}
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         {rewards.map((r,i)=>{
-          const canAfford=xp>=r.cost
-          const isClaimed=r.shield ? false : claimed.includes(r.id)
+          const canAfford = coins>=r.cost
+          const pendCount = (redemptions||[]).filter(x=>x.rewardId===r.id && x.status==='pendente').length
           return (
             <div key={r.id} className="card-hover fade-up"
-              style={{animationDelay:`${i*0.06}s`,background:isClaimed?'rgba(0,214,143,.07)':T.surface,border:`1px solid ${isClaimed?'rgba(0,214,143,.3)':canAfford?T.pri+'44':T.border}`,borderRadius:16,padding:16,cursor:canAfford&&!isClaimed?'pointer':'default',opacity:!canAfford&&!isClaimed?.42:1}}
-              onClick={()=>!isClaimed&&handleClick(r)}>
+              style={{animationDelay:`${i*0.06}s`,background:T.surface,border:`1px solid ${canAfford?T.pri+'44':T.border}`,borderRadius:16,padding:16,cursor:canAfford?'pointer':'default',opacity:canAfford?1:.42}}
+              onClick={()=>handleClick(r)}>
               <div style={{fontSize:36,marginBottom:8}}>{r.icon}</div>
               <div style={{color:T.txt,fontWeight:700,fontSize:13,marginBottom:4}}>{r.title}</div>
               {r.shield && <div style={{color:T.muted,fontSize:11,marginBottom:6}}>Protege 1 dia de sequência</div>}
-              {isClaimed
-                ? <div style={{color:T.ok,fontWeight:700,fontSize:13}}>✓ Resgatado!</div>
-                : <div style={{display:'flex',alignItems:'center',gap:4}}>
-                    <span style={{color:canAfford?T.acc:T.muted,fontWeight:700,fontSize:13}}>{r.cost} XP</span>
-                    {canAfford&&<span style={{fontSize:11,color:T.ok}}>• disponível</span>}
-                  </div>
-              }
+              <div style={{display:'flex',alignItems:'center',gap:4,flexWrap:'wrap'}}>
+                <span style={{color:canAfford?T.acc:T.muted,fontWeight:700,fontSize:13}}>{r.cost} 🪙</span>
+                {canAfford&&<span style={{fontSize:11,color:T.ok}}>• resgatar</span>}
+              </div>
+              {pendCount>0 && <div style={{color:'#F59E0B',fontWeight:600,fontSize:11,marginTop:6}}>⏳ {pendCount} a caminho</div>}
             </div>
           )
         })}
@@ -589,7 +610,7 @@ function NotifDot({ count }) {
   )
 }
 
-function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showCombo, motivationMsg, onCloseMotivation, profileIcon, profilePhoto, onProfileIcon, onProfilePhoto, onBuyShield, onLogout }) {
+function TeenApp({ tasks, rewards, done, onToggle, xp, coins, streak, shields, showCombo, redemptions, onRedeem, motivationMsg, onCloseMotivation, profileIcon, profilePhoto, onProfileIcon, onProfilePhoto, onBuyShield, onLogout }) {
   const [tab,        setTab]        = useState('missoes')
   const [showAv,     setShowAv]     = useState(false)
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('mf_tutorial_done'))
@@ -609,8 +630,8 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
     if (id === 'trofeus') setNotifTrofeu(false)
   }
 
-  // recompensas acessíveis (excluindo escudo)
-  const lojaNotif = rewards.filter(r => !r.shield && xp >= r.cost).length
+  // recompensas acessíveis com as moedas (excluindo escudo)
+  const lojaNotif = rewards.filter(r => !r.shield && coins >= r.cost).length
 
   return (
     <div style={{background:T.bg,minHeight:'100vh',maxWidth:440,margin:'0 auto',position:'relative'}}>
@@ -633,6 +654,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
               <div style={{color:T.muted,fontSize:12}}>Bem-vinda,</div>
               <div style={{display:'flex',alignItems:'center',gap:6}}>
                 <span style={{color:T.txt,fontWeight:700,fontSize:17}}>Kauanny</span>
+                <span style={{fontSize:13}}>🪙{coins}</span>
                 {streak>0 && <span style={{fontSize:13}}>🔥{streak}</span>}
                 {shields>0 && <span style={{fontSize:13}}>🛡️{shields}</span>}
               </div>
@@ -651,7 +673,7 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
       </div>
 
       {tab==='missoes' && <TeenMissoes tasks={tasks} done={done} onToggle={onToggle} showCombo={showCombo} motivationMsg={motivationMsg} onCloseMotivation={onCloseMotivation} />}
-      {tab==='loja'    && <TeenLoja rewards={rewards} xp={xp} shields={shields} onBuyShield={onBuyShield} />}
+      {tab==='loja'    && <TeenLoja rewards={rewards} coins={coins} shields={shields} redemptions={redemptions} onRedeem={onRedeem} onBuyShield={onBuyShield} />}
       {tab==='trofeus' && <TeenTrofeus xp={xp} streak={streak} shields={shields} />}
 
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:440,background:T.surface,borderTop:`1px solid ${T.border}`,display:'flex',padding:'8px 0 16px'}}>
@@ -674,12 +696,12 @@ function TeenApp({ tasks, rewards, done, onToggle, xp, streak, shields, showComb
 // ════════════════════════════════════════════════════════════════════
 // TELAS DOS PAIS
 // ════════════════════════════════════════════════════════════════════
-function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profileIcon, profilePhoto, onUndoTask }) {
+function ParentHome({ tasks, done, xp, coins, rewards, streak, shields, history, profileIcon, profilePhoto, onUndoTask }) {
   const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
   const todayXp    = tasks.filter(t=>done.includes(t.id)).reduce((s,t)=>s+t.xp,0)
   const pct        = tasks.length ? Math.round((done.length/tasks.length)*100) : 0
   const lvl        = getLvl(xp)
-  const nextRwd    = rewards.filter(r=>r.cost>xp).sort((a,b)=>a.cost-b.cost)[0]
+  const nextRwd    = rewards.filter(r=>!r.shield && r.cost>coins).sort((a,b)=>a.cost-b.cost)[0]
   const maxXp      = tasks.reduce((s,t)=>s+t.xp,0) || 1
 
   // gráfico: últimos 7 dias
@@ -753,19 +775,19 @@ function ParentHome({ tasks, done, xp, rewards, streak, shields, history, profil
         </div>
       </div>
 
-      {/* próxima meta */}
+      {/* próxima meta (baseada nas moedas gastáveis) */}
       {nextRwd && (
         <div style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:18,padding:16}}>
-          <div style={{color:P.muted,fontSize:12,marginBottom:8}}>🎯 Próxima meta</div>
+          <div style={{color:P.muted,fontSize:12,marginBottom:8}}>🎯 Próxima meta · 🪙 {coins} moedas</div>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <span style={{fontSize:28}}>{nextRwd.icon}</span>
             <div style={{flex:1}}>
               <div style={{color:P.txt,fontWeight:700}}>{nextRwd.title}</div>
-              <div style={{color:P.muted,fontSize:13}}>{nextRwd.cost-xp} XP faltando</div>
+              <div style={{color:P.muted,fontSize:13}}>{nextRwd.cost-coins} moedas faltando</div>
             </div>
           </div>
           <div style={{background:P.surface2,borderRadius:99,height:5,overflow:'hidden',marginTop:12}}>
-            <div className="bar" style={{width:`${Math.min(100,Math.round((xp/nextRwd.cost)*100))}%`,height:'100%',background:`linear-gradient(90deg,${P.pri},${P.acc})`,borderRadius:99}} />
+            <div className="bar" style={{width:`${Math.min(100,Math.round((coins/nextRwd.cost)*100))}%`,height:'100%',background:`linear-gradient(90deg,${P.pri},${P.acc})`,borderRadius:99}} />
           </div>
         </div>
       )}
@@ -1063,10 +1085,95 @@ function ParentTutorial({ onClose }) {
   )
 }
 
-function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shields, history, profileIcon, profilePhoto, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
+function ParentResgates({ coins, redemptions, onDeliver, onCancel }) {
+  const [confirm, setConfirm] = useState(null) // {tipo:'entregar'|'devolver', item}
+  const reds = redemptions||[]
+  const pendentes = reds.filter(r=>r.status==='pendente').sort((a,b)=>b.id-a.id)
+  const entregues = reds.filter(r=>r.status==='entregue').sort((a,b)=>b.id-a.id)
+
+  const doConfirm = () => {
+    if (confirm.tipo==='entregar') onDeliver(confirm.item.id)
+    else onCancel(confirm.item.id)
+    setConfirm(null)
+  }
+
+  return (
+    <div style={{padding:'16px 16px 100px'}}>
+      {confirm && (
+        <Confirm
+          danger={confirm.tipo==='devolver'}
+          title={confirm.tipo==='entregar' ? 'Marcar como entregue?' : 'Devolver as moedas?'}
+          msg={confirm.tipo==='entregar'
+            ? `${confirm.item.icon} ${confirm.item.title}\nConfirma que já entregou esta recompensa?`
+            : `${confirm.item.icon} ${confirm.item.title}\nO pedido será cancelado e ${confirm.item.cost} moedas voltam para a Kauanny.`}
+          yesLabel={confirm.tipo==='entregar' ? 'Sim, entreguei ✓' : 'Devolver moedas'}
+          noLabel="Voltar"
+          onYes={doConfirm} onNo={()=>setConfirm(null)} />
+      )}
+
+      {/* saldo da Kauanny */}
+      <div style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:16,padding:'16px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <div style={{color:P.muted,fontSize:12}}>Moedas da Kauanny</div>
+          <div style={{color:P.txt,fontWeight:800,fontSize:26,lineHeight:1.1}}>🪙 {coins}</div>
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div style={{color:P.muted,fontSize:12}}>Pendentes</div>
+          <div style={{color:pendentes.length?P.acc:P.muted,fontWeight:800,fontSize:26,lineHeight:1.1}}>{pendentes.length}</div>
+        </div>
+      </div>
+
+      {/* pendentes */}
+      <div style={{color:P.txt,fontWeight:700,fontSize:15,marginBottom:10}}>Pedidos pendentes</div>
+      {pendentes.length===0 && (
+        <div style={{background:P.surface,border:`1px dashed ${P.border}`,borderRadius:14,padding:'24px 16px',textAlign:'center',color:P.muted,fontSize:14,marginBottom:24}}>
+          Nenhum resgate aguardando. Quando a Kauanny resgatar algo, aparece aqui. 🎁
+        </div>
+      )}
+      {pendentes.map(p=>(
+        <div key={p.id} style={{background:P.surface,border:`1px solid ${P.border}`,borderRadius:16,padding:16,marginBottom:10}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+            <span style={{fontSize:32}}>{p.icon}</span>
+            <div style={{flex:1}}>
+              <div style={{color:P.txt,fontWeight:700,fontSize:15}}>{p.title}</div>
+              <div style={{color:P.muted,fontSize:12}}>{p.cost} moedas · resgatado em {p.date}</div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn" onClick={()=>setConfirm({tipo:'devolver',item:p})}
+              style={{flex:1,background:P.surface2,border:`1px solid ${P.border}`,borderRadius:12,padding:'11px',color:P.muted,fontWeight:600,fontSize:13}}>↩️ Devolver</button>
+            <button className="btn" onClick={()=>setConfirm({tipo:'entregar',item:p})}
+              style={{flex:1,background:P.ok,border:'none',borderRadius:12,padding:'11px',color:'white',fontWeight:700,fontSize:13}}>✓ Entregar</button>
+          </div>
+        </div>
+      ))}
+
+      {/* histórico de entregas */}
+      {entregues.length>0 && (
+        <>
+          <div style={{color:P.txt,fontWeight:700,fontSize:15,margin:'24px 0 10px'}}>Histórico de entregas</div>
+          {entregues.map(p=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:12,background:P.surface,border:`1px solid ${P.border}`,borderRadius:14,padding:'12px 16px',marginBottom:8,opacity:.75}}>
+              <span style={{fontSize:24}}>{p.icon}</span>
+              <div style={{flex:1}}>
+                <div style={{color:P.txt,fontWeight:600,fontSize:14}}>{p.title}</div>
+                <div style={{color:P.muted,fontSize:12}}>{p.cost} moedas · {p.date}</div>
+              </div>
+              <span style={{color:P.ok,fontWeight:700,fontSize:12}}>✓ Entregue</span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ParentApp({ tasks, setTasks, rewards, setRewards, xp, coins, done, streak, shields, history, redemptions, onDeliver, onCancelRedemption, profileIcon, profilePhoto, parentIcon, onParentIcon, onResetDay, onResetAll, onUndoTask, onLogout, userName }) {
   const [tab,         setTab]         = useState('home')
   const [showAv,      setShowAv]      = useState(false)
   const [showTutorial,setShowTutorial]= useState(()=>!localStorage.getItem('mf_parent_tutorial_done'))
+
+  const pendNotif = (redemptions||[]).filter(r=>r.status==='pendente').length
 
   const closeTutorial = () => { localStorage.setItem('mf_parent_tutorial_done','1'); setShowTutorial(false) }
 
@@ -1097,15 +1204,19 @@ function ParentApp({ tasks, setTasks, rewards, setRewards, xp, done, streak, shi
         </div>
       </div>
 
-      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} rewards={rewards} streak={streak} shields={shields} history={history} profileIcon={profileIcon} profilePhoto={profilePhoto} onUndoTask={onUndoTask} />}
+      {tab==='home'        && <ParentHome tasks={tasks} done={done} xp={xp} coins={coins} rewards={rewards} streak={streak} shields={shields} history={history} profileIcon={profileIcon} profilePhoto={profilePhoto} onUndoTask={onUndoTask} />}
       {tab==='tarefas'     && <ParentTarefas tasks={tasks} setTasks={setTasks} />}
       {tab==='recompensas' && <ParentRecompensas rewards={rewards} setRewards={setRewards} />}
+      {tab==='resgates'    && <ParentResgates coins={coins} redemptions={redemptions} onDeliver={onDeliver} onCancel={onCancelRedemption} />}
       {tab==='config'      && <ParentConfig onResetDay={onResetDay} onResetAll={onResetAll} />}
 
       <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:440,background:P.surface,borderTop:`1px solid ${P.border}`,display:'flex',padding:'8px 0 16px'}}>
-        {[['home','📊','Visão Geral'],['tarefas','✅','Tarefas'],['recompensas','🎁','Recompensas'],['config','⚙️','Config']].map(([id,ic,label])=>(
-          <button key={id} className="btn" onClick={()=>setTab(id)} style={{flex:1,background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'6px 0'}}>
-            <span style={{fontSize:20}}>{ic}</span>
+        {[['home','📊','Visão',0],['tarefas','✅','Tarefas',0],['recompensas','🎁','Loja',0],['resgates','📬','Resgates',pendNotif],['config','⚙️','Config',0]].map(([id,ic,label,notif])=>(
+          <button key={id} className="btn" onClick={()=>setTab(id)} style={{flex:1,background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'6px 0',position:'relative'}}>
+            <div style={{position:'relative',display:'inline-flex'}}>
+              <span style={{fontSize:20}}>{ic}</span>
+              <NotifDot count={notif} />
+            </div>
             <span style={{fontSize:10,fontWeight:tab===id?700:500,color:tab===id?P.pri:P.muted}}>{label}</span>
             {tab===id&&<div style={{width:18,height:3,background:P.pri,borderRadius:99,marginTop:2}} />}
           </button>
@@ -1125,8 +1236,10 @@ export default function App() {
   const [rewards,        setRwdSt]         = useState(REWARDS_INIT)
   const [done,           setDone]          = useState([])
   const [xp,             setXp]            = useState(0)
+  const [coins,          setCoins]         = useState(0)
   const [streak,         setStreak]        = useState(0)
   const [shields,        setShields]       = useState(0)
+  const [redemptions,    setRedemptions]   = useState([])
   const [history,        setHistory]       = useState([])
   const [profileIcon,    setProfileIconSt]  = useState('😊')
   const [profilePhoto,   setProfilePhotoSt] = useState(null)
@@ -1195,6 +1308,12 @@ export default function App() {
           needsUpdate = true
         }
 
+        // Inicializa saldo de moedas (1ª vez): começa igual ao XP atual dela
+        if (d.coins === undefined) {
+          updates = {...updates, coins: d.xp ?? 0}
+          needsUpdate = true
+        }
+
         if (needsUpdate) {
           await setDoc(DOC_REF, {...updates, done:newDone}, {merge:true})
           return
@@ -1205,8 +1324,10 @@ export default function App() {
         if (d.rewards) setRwdSt(d.rewards)
         setDone(d.done||[])
         setXp(d.xp??0)
+        setCoins(d.coins ?? d.xp ?? 0)
         setStreak(d.streak||0)
         setShields(d.shields||0)
+        setRedemptions(d.redemptions||[])
         setHistory(d.history||[])
         setProfileIconSt(d.profileIcon||'😊')
         setProfilePhotoSt(d.profilePhoto||null)
@@ -1235,7 +1356,8 @@ export default function App() {
   const handleToggle = task => {
     const isDone   = done.includes(task.id)
     const newDone  = isDone ? done.filter(id=>id!==task.id) : [...done, task.id]
-    let   newXp    = isDone ? Math.max(0,xp-task.xp) : xp+task.xp
+    let   newXp    = isDone ? Math.max(0,xp-task.xp)    : xp+task.xp
+    let   newCoins = isDone ? Math.max(0,coins-task.xp) : coins+task.xp
 
     // Mensagem de incentivo ao marcar
     if (!isDone) showMotivation()
@@ -1246,23 +1368,51 @@ export default function App() {
       const dailyTasks = tasks.filter(t=>t.tipo==='diaria')
       const allDone    = dailyTasks.every(t=>newDone.includes(t.id))
       if (allDone) {
-        newXp += COMBO_BONUS
-        newCombo = true
+        newXp    += COMBO_BONUS
+        newCoins += COMBO_BONUS
+        newCombo  = true
         setShowCombo(true)
         setTimeout(()=>setShowCombo(false), 2200)
       }
     }
 
-    setDone(newDone); setXp(newXp); setComboBT(newCombo)
-    save({done:newDone, xp:newXp, comboBonusToday:newCombo})
+    setDone(newDone); setXp(newXp); setCoins(newCoins); setComboBT(newCombo)
+    save({done:newDone, xp:newXp, coins:newCoins, comboBonusToday:newCombo})
   }
 
+  // Compra de escudo: desconta MOEDAS (não mexe no XP/nível)
   const handleBuyShield = cost => {
-    if (xp < cost) return
-    const newXp = xp - cost
+    if (coins < cost) return
+    const newCoins = coins - cost
     const newShields = shields + 1
-    setXp(newXp); setShields(newShields)
-    save({xp:newXp, shields:newShields})
+    setCoins(newCoins); setShields(newShields)
+    save({coins:newCoins, shields:newShields})
+  }
+
+  // Resgate de recompensa: desconta moedas e cria pedido pendente (XP/nível intactos)
+  const handleRedeem = reward => {
+    if (coins < reward.cost) return
+    const newCoins = coins - reward.cost
+    const entry = { id:Date.now(), rewardId:reward.id, title:reward.title, icon:reward.icon, cost:reward.cost, date:getToday(), status:'pendente' }
+    const newReds = [...redemptions, entry]
+    setCoins(newCoins); setRedemptions(newReds)
+    save({coins:newCoins, redemptions:newReds})
+  }
+
+  // Pais marcam pedido como entregue
+  const handleDeliverRedemption = id => {
+    const newReds = redemptions.map(r => r.id===id ? {...r, status:'entregue'} : r)
+    setRedemptions(newReds); save({redemptions:newReds})
+  }
+
+  // Pais cancelam pedido: devolve as moedas se ainda estava pendente
+  const handleCancelRedemption = id => {
+    const r = redemptions.find(x=>x.id===id)
+    if (!r) return
+    const newReds  = redemptions.filter(x=>x.id!==id)
+    const newCoins = r.status==='pendente' ? coins + r.cost : coins
+    setRedemptions(newReds); setCoins(newCoins)
+    save({redemptions:newReds, coins:newCoins})
   }
 
   const handleProfileIcon  = icon => { setProfileIconSt(icon); save({profileIcon:icon}) }
@@ -1271,10 +1421,11 @@ export default function App() {
   const handleLogout      = ()   => signOut(auth)
 
   const handleUndoTask = task => {
-    const newDone = done.filter(id=>id!==task.id)
-    const newXp   = Math.max(0, xp - task.xp)
-    setDone(newDone); setXp(newXp)
-    save({done:newDone, xp:newXp})
+    const newDone  = done.filter(id=>id!==task.id)
+    const newXp    = Math.max(0, xp - task.xp)
+    const newCoins = Math.max(0, coins - task.xp)
+    setDone(newDone); setXp(newXp); setCoins(newCoins)
+    save({done:newDone, xp:newXp, coins:newCoins})
   }
 
   const handleResetDay = async () => {
@@ -1285,11 +1436,11 @@ export default function App() {
   }
 
   const handleResetAll = async () => {
-    // Zera apenas progresso (XP, sequência, escudos, histórico, marcações).
+    // Zera apenas progresso (XP, moedas, sequência, escudos, histórico, resgates, marcações).
     // NUNCA toca em tasks/rewards: as personalizações dos pais são preservadas.
-    setDone([]); setXp(0); setStreak(0); setShields(0); setHistory([]); setComboBT(false)
+    setDone([]); setXp(0); setCoins(0); setStreak(0); setShields(0); setHistory([]); setRedemptions([]); setComboBT(false)
     await setDoc(DOC_REF, {
-      done:[], xp:0, streak:0, shields:0, history:[], comboBonusToday:false,
+      done:[], xp:0, coins:0, streak:0, shields:0, history:[], redemptions:[], comboBonusToday:false,
       lastResetDiaria:getToday(), lastResetSemanal:getMonday(), lastResetMensal:getMonth(),
     }, {merge:true})
   }
@@ -1308,13 +1459,15 @@ export default function App() {
       <style>{CSS}</style>
       {isParent
         ? <ParentApp tasks={tasks} setTasks={handleSetTasks} rewards={rewards} setRewards={handleSetRewards}
-            xp={xp} done={done} streak={streak} shields={shields} history={history}
+            xp={xp} coins={coins} done={done} streak={streak} shields={shields} history={history}
+            redemptions={redemptions} onDeliver={handleDeliverRedemption} onCancelRedemption={handleCancelRedemption}
             profileIcon={profileIcon} profilePhoto={profilePhoto}
             parentIcon={parentIcon} onParentIcon={handleParentIcon}
             onResetDay={handleResetDay} onResetAll={handleResetAll} onUndoTask={handleUndoTask}
             onLogout={handleLogout} userName={getFirstName(user.email)} />
         : <TeenApp tasks={tasks} rewards={rewards} done={done} onToggle={handleToggle}
-            xp={xp} streak={streak} shields={shields} showCombo={showCombo}
+            xp={xp} coins={coins} streak={streak} shields={shields} showCombo={showCombo}
+            redemptions={redemptions} onRedeem={handleRedeem}
             motivationMsg={motivationMsg} onCloseMotivation={closeMotivation}
             profileIcon={profileIcon} profilePhoto={profilePhoto}
             onProfileIcon={handleProfileIcon} onProfilePhoto={handleProfilePhoto}
