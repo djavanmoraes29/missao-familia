@@ -199,7 +199,7 @@ function LoginScreen() {
     <div style={{background:'#07080F',minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:28}}>
       <div style={{textAlign:'center',marginBottom:44}}>
         <div style={{fontSize:64,marginBottom:14}}>🏠</div>
-        <h1 style={{color:'#F2F0FF',fontSize:32,fontWeight:800,letterSpacing:'-0.5px',margin:0}}>Missão Família</h1>
+        <h1 style={{color:'#F2F0FF',fontSize:32,fontWeight:800,letterSpacing:'-0.5px',margin:0}}>XP em Casa</h1>
         <p style={{color:'#6B7280',fontSize:14,marginTop:8}}>Responsabilidade que vira conquista</p>
       </div>
       <div style={{width:'100%',maxWidth:320,display:'flex',flexDirection:'column',gap:12}}>
@@ -530,7 +530,7 @@ function TeenTrofeus({ xp, streak, shields }) {
 
 // ─── Tutorial ────────────────────────────────────────────────────────
 const TUTORIAL_STEPS = [
-  { icon:'🏠', title:'Bem-vinda ao Missão Família!',   desc:'Aqui você transforma responsabilidades em conquistas. Cada tarefa feita vira XP e XP vira recompensas reais!' },
+  { icon:'🏠', title:'Bem-vinda ao XP em Casa!',   desc:'Aqui você transforma responsabilidades em conquistas. Cada tarefa feita vira XP e XP vira recompensas reais!' },
   { icon:'🔥', title:'Tarefas Diárias',                desc:'Se renovam todo dia. Complete todas e ganhe o bônus COMBO (+15 XP). Se faltar um dia, sua sequência quebra!' },
   { icon:'📅', title:'Tarefas Semanais',               desc:'Se renovam toda segunda-feira. Valem mais XP porque exigem consistência durante a semana.' },
   { icon:'🗓️', title:'Tarefas Mensais',               desc:'Se renovam no dia 1 de cada mês. São as maiores conquistas — notas, leitura, objetivos pessoais.' },
