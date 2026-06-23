@@ -7,7 +7,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebas
 const DOC_REF      = doc(db, 'familia', 'sofia')
 const PARENT_EMAIL = 'thatiana@mae.com'
 const COMBO_BONUS  = 15
-const DOC_VERSION  = 3   // incrementar aqui para forçar atualização de tarefas/recompensas
+const DOC_VERSION  = 4   // incrementar aqui para forçar atualização de tarefas/recompensas
 const AVATARS        = ['😊','🦋','🌸','⭐','🦄','🐱','🐝','🌺','💫','🎀','🦊','🐰','🌙','🍀','💎']
 const PARENT_AVATARS = ['👩','👨','👸','🤴','🌺','💫','🎩','🌸','💎','⭐','🦁','🦋']
 const MOTIVATION_MSGS = [
@@ -45,34 +45,62 @@ const getMonday = () => {
 // ─── dados iniciais ──────────────────────────────────────────────────
 const TASKS_INIT = [
   // Diárias
-  { id:1,  title:'Arrumar a cama antes das 9h',              xp:3,  icon:'🛏️', tipo:'diaria'  },
-  { id:2,  title:'Lavar a própria louça',                    xp:3,  icon:'🍽️', tipo:'diaria'  },
-  { id:3,  title:'Manter o quarto arrumado',                 xp:4,  icon:'🧹', tipo:'diaria'  },
-  { id:4,  title:'Cumprir horário de dormir (sem celular)',  xp:5,  icon:'⏰', tipo:'diaria'  },
-  { id:5,  title:'Estudar 45 min sem ninguém pedir',        xp:12, icon:'📚', tipo:'diaria'  },
-  { id:6,  title:'Sem celular nas refeições',               xp:4,  icon:'🚫', tipo:'diaria'  },
-  { id:7,  title:'Ler pelo menos 15 páginas',               xp:8,  icon:'📖', tipo:'diaria'  },
+  { id:1,  title:'Arrumar a cama',              xp:3,  icon:'🛏️', tipo:'diaria'  },
+  { id:2,  title:'Encher garrafas',             xp:3,  icon:'💧', tipo:'diaria'  },
+  { id:3,  title:'Sem celular nas refeições',   xp:5,  icon:'🚫', tipo:'diaria'  },
+  { id:4,  title:'Ajudar na cozinha',           xp:5,  icon:'🍳', tipo:'diaria'  },
+  { id:5,  title:'Lavar a louça',               xp:6,  icon:'🍽️', tipo:'diaria'  },
+  { id:6,  title:'Varrer a casa',               xp:6,  icon:'🧹', tipo:'diaria'  },
+  { id:7,  title:'Ler 15 páginas',              xp:7,  icon:'📖', tipo:'diaria'  },
+  { id:8,  title:'Largar o celular às 22h',     xp:8,  icon:'⏰', tipo:'diaria'  },
+  { id:9,  title:'Estudar 45 min',              xp:12, icon:'📚', tipo:'diaria'  },
   // Semanais
-  { id:8,  title:'Faxina completa do quarto',               xp:20, icon:'✨', tipo:'semanal' },
-  { id:9,  title:'Ajudar nas tarefas da casa (mín. 2x)',    xp:20, icon:'🏠', tipo:'semanal' },
-  { id:10, title:'Atividade física 3× na semana',           xp:25, icon:'💪', tipo:'semanal' },
-  { id:11, title:'Fazer algo gentil/prestativo espontâneo', xp:15, icon:'💛', tipo:'semanal' },
-  { id:12, title:'Semana sem atraso ou compromisso perdido',xp:20, icon:'🎯', tipo:'semanal' },
+  { id:10, title:'Ser gentil com todos',                        xp:8,  icon:'💛', tipo:'semanal' },
+  { id:11, title:'Ser paciente com todos',                      xp:8,  icon:'🕊️', tipo:'semanal' },
+  { id:12, title:'Respeitar os mais velhos',                    xp:8,  icon:'❤️', tipo:'semanal' },
+  { id:13, title:'Manter a casa arrumada',                      xp:10, icon:'🏠', tipo:'semanal' },
+  { id:14, title:'Lavar todos os sapatos',                      xp:12, icon:'👟', tipo:'semanal' },
+  { id:15, title:'Faxina no quarto',                            xp:15, icon:'✨', tipo:'semanal' },
+  { id:16, title:'Roupas fds (estender/tirar/guardar)',         xp:15, icon:'🧺', tipo:'semanal' },
+  { id:17, title:'Faxina na casa (ajudar)',                     xp:18, icon:'🧹', tipo:'semanal' },
+  { id:18, title:'Ajudar os avós',                              xp:18, icon:'👴', tipo:'semanal' },
+  { id:19, title:'Estudar todos os dias',                       xp:20, icon:'📚', tipo:'semanal' },
+  { id:20, title:'Atividade física (3× na semana)',             xp:22, icon:'💪', tipo:'semanal' },
   // Mensais
-  { id:13, title:'Nota ≥ 7 em todas as provas/trabalhos',   xp:80, icon:'🎓', tipo:'mensal'  },
-  { id:14, title:'Concluir meta de leitura (1 livro/80 pág)',xp:60, icon:'📚', tipo:'mensal'  },
-  { id:15, title:'Mês sem conflito sério com a família',    xp:50, icon:'❤️', tipo:'mensal'  },
-  { id:16, title:'Completar objetivo pessoal combinado',    xp:40, icon:'⭐', tipo:'mensal'  },
+  { id:21, title:'Completar objetivo pessoal combinado', xp:40,  icon:'⭐', tipo:'mensal' },
+  { id:22, title:'Mês sem conflito sério com a família', xp:50,  icon:'❤️', tipo:'mensal' },
+  { id:23, title:'Meta de leitura (1 livro ou 80 pág)',  xp:60,  icon:'📖', tipo:'mensal' },
+  { id:24, title:'Nota ≥ 8 em todas as provas',          xp:100, icon:'🎓', tipo:'mensal' },
 ]
 
 const REWARDS_INIT = [
-  { id:1, title:'Escudo de Sequência',     cost:200,  icon:'🛡️', shield:true  },
-  { id:2, title:'Escolher o filme',     cost:400,  icon:'🎬', shield:false },
-  { id:3, title:'Pizza especial',       cost:800,  icon:'🍕', shield:false },
-  { id:4, title:'Ir ao cinema',         cost:1200, icon:'🎭', shield:false },
-  { id:5, title:'R$ 30 bônus',          cost:2000, icon:'💰', shield:false },
-  { id:6, title:'Algo muito desejado',  cost:3500, icon:'🎁', shield:false },
-  { id:7, title:'Experiência especial', cost:6000, icon:'✨', shield:false },
+  { id:1,  title:'Escudo de Sequência',             cost:150,   icon:'🛡️', shield:true  },
+  { id:2,  title:'Playlist no som do carro',        cost:200,   icon:'🎵', shield:false },
+  { id:3,  title:'Sorvete ou açaí especial',        cost:300,   icon:'🍦', shield:false },
+  { id:4,  title:'Folga de uma tarefa do dia',      cost:250,   icon:'😴', shield:false },
+  { id:5,  title:'1h extra de tela no fim de semana', cost:350, icon:'🎮', shield:false },
+  { id:6,  title:'Noite de jogos em família',       cost:400,   icon:'🎲', shield:false },
+  { id:7,  title:'Escolher o filme da noite',       cost:400,   icon:'🎬', shield:false },
+  { id:8,  title:'Esmalte ou acessório pequeno',    cost:500,   icon:'💅', shield:false },
+  { id:9,  title:'Lanche fora (ela escolhe)',       cost:500,   icon:'🍔', shield:false },
+  { id:10, title:'Pizza especial',                  cost:800,   icon:'🍕', shield:false },
+  { id:11, title:'Capinha ou acessório de celular', cost:1000,  icon:'📱', shield:false },
+  { id:12, title:'Ir ao cinema',                    cost:1200,  icon:'🎭', shield:false },
+  { id:13, title:'Dia de cuidados (salão/spa)',     cost:1200,  icon:'💆', shield:false },
+  { id:14, title:'Restaurante especial',            cost:1200,  icon:'🍣', shield:false },
+  { id:15, title:'Compra de roupa ou calçado',      cost:1500,  icon:'👟', shield:false },
+  { id:16, title:'Show ou evento cultural',         cost:1500,  icon:'🎤', shield:false },
+  { id:17, title:'R$ 30 em dinheiro',               cost:2000,  icon:'💰', shield:false },
+  { id:18, title:'Compra de roupa (sem limite fixo)',cost:3000, icon:'👗', shield:false },
+  { id:19, title:'Passeio especial',                cost:3500,  icon:'🏖️', shield:false },
+  { id:20, title:'Algo muito desejado (ela pede)',  cost:4000,  icon:'🎁', shield:false },
+  { id:21, title:'Dia de compras',                  cost:4000,  icon:'🛍️', shield:false },
+  { id:22, title:'R$ 60 em dinheiro',               cost:4500,  icon:'💰', shield:false },
+  { id:23, title:'Parque de diversões',             cost:5000,  icon:'🎡', shield:false },
+  { id:24, title:'Experiência especial (ela escolhe)', cost:8000, icon:'✨', shield:false },
+  { id:25, title:'R$ 100 em dinheiro',              cost:8000,  icon:'💵', shield:false },
+  { id:26, title:'Viagem de um dia',                cost:10000, icon:'🎢', shield:false },
+  { id:27, title:'Viagem especial em família',      cost:15000, icon:'✈️', shield:false },
 ]
 
 const LEVELS = [
